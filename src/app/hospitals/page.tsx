@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapComponent, type MapMarker }_from '@/components/common/MapComponent';
+import { MapComponent, type MapMarker } from '@/components/common/MapComponent';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { getUserLocation, type UserLocation } from '@/lib/geolocation';
 import { useToast } from '@/hooks/use-toast';
