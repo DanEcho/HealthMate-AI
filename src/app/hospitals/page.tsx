@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapComponent, type MapMarker } from '@/components/common/MapComponent';
+// Import the dynamically loaded map component
+import { DynamicMapComponent, type MapMarker } from '@/components/common/MapComponent';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { getUserLocation, type UserLocation } from '@/lib/geolocation';
 import { useToast } from '@/hooks/use-toast';
@@ -66,8 +67,9 @@ export default function HospitalsPage() {
             </div>
           )}
           {!isLoading && !error && userLocation && (
-            <MapComponent
-              center={userLocation}
+            // Use the DynamicMapComponent here, ensuring userLocation is valid
+            <DynamicMapComponent
+              center={userLocation} // Pass the valid userLocation
               zoom={13}
               markers={MOCK_HOSPITALS}
               className="h-[600px] w-full rounded-lg overflow-hidden shadow-md border"

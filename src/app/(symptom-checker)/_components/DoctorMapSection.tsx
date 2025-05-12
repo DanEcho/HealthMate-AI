@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MapComponent, type MapMarker } from '@/components/common/MapComponent';
+// Import the dynamically loaded map component
+import { DynamicMapComponent, type MapMarker } from '@/components/common/MapComponent';
 import type { UserLocation } from '@/lib/geolocation';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,11 +16,11 @@ interface DoctorMapSectionProps {
   symptoms?: string; // Symptoms might be used to refine search in a future version
 }
 
-export function DoctorMapSection({ 
-  userLocation, 
-  onLocateDoctors, 
+export function DoctorMapSection({
+  userLocation,
+  onLocateDoctors,
   isLocatingDoctors,
-  symptoms 
+  symptoms
 }: DoctorMapSectionProps) {
   const [showMap, setShowMap] = useState(false);
 
@@ -58,14 +59,17 @@ export function DoctorMapSection({
         {showMap && (
           <>
             {isLocatingDoctors && <LoadingSpinner className="my-4" />}
+
             {!isLocatingDoctors && userLocation && (
-              <MapComponent
-                center={userLocation}
+              // Use the DynamicMapComponent here
+              <DynamicMapComponent
+                center={userLocation} // Pass the valid userLocation
                 zoom={14}
                 markers={MOCK_DOCTORS}
                 className="h-[400px] w-full rounded-lg overflow-hidden shadow-md border mt-4"
               />
             )}
+
             {!isLocatingDoctors && !userLocation && (
               <p className="text-destructive mt-4">
                 Could not determine your location. Please enable location services and try again.

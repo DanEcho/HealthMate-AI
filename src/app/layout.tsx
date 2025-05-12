@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { AppShell } from '@/components/layout/AppShell';
-import { GoogleMapsProvider } from '@/components/providers/GoogleMapsProvider'; // Import the new provider
+// Removed GoogleMapsProvider import
 import { Toaster } from '@/components/ui/toaster';
 
 const geistSans = Geist({
@@ -29,13 +29,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {/* Wrap AppShell and Toaster with the new GoogleMapsProvider */}
-        <GoogleMapsProvider>
-          <AppShell>
-            {children}
-          </AppShell>
-          <Toaster />
-        </GoogleMapsProvider>
+        {/* Removed GoogleMapsProvider wrapper */}
+        <AppShell>
+          {children}
+        </AppShell>
+        <Toaster />
       </body>
     </html>
   );
