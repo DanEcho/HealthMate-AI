@@ -1,3 +1,9 @@
-export default function Home() {
-  return <></>;
+import { AppLayoutClient } from "./(symptom-checker)/AppLayoutClient";
+
+export default function HomePage() {
+  return (
+    <div className="w-full">
+      <AppLayoutClient />
+    </div>
+  );
 }
