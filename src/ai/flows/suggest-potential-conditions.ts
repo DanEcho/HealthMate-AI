@@ -22,7 +22,7 @@ export async function suggestPotentialConditions(input: SuggestPotentialConditio
   return suggestPotentialConditionsFlow(input);
 }
 
-const prompt = ai.definePrompt({
+const suggestPotentialConditionsPrompt = ai.definePrompt({
   name: 'suggestPotentialConditionsPrompt',
   input: {schema: SuggestPotentialConditionsInputSchema},
   output: {schema: SuggestPotentialConditionsOutputSchema},
@@ -33,6 +33,26 @@ Return your response *only* as a JSON array of objects. Each object in the array
 Prioritize conditions that are most likely to be related to the symptoms. Limit your response to the top 3 most relevant potential conditions.
 Ensure your entire output strictly adheres to this JSON array format and the specified object structure.
 `,
+  config: {
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_HATE_SPEECH',
+        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+      },
+      {
+        category: 'HARM_CATEGORY_HARASSMENT',
+        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+      },
+      {
+        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+      },
+    ],
+  },
 });
 
 const suggestPotentialConditionsFlow = ai.defineFlow(
@@ -42,7 +62,7 @@ const suggestPotentialConditionsFlow = ai.defineFlow(
     outputSchema: SuggestPotentialConditionsOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await suggestPotentialConditionsPrompt(input);
      if (!output) {
       throw new Error('AI failed to suggest potential conditions.');
     }
