@@ -36,20 +36,20 @@ function createLeafletIcon(type: MapMarker['type']): LeafletIconType | null {
   }
 
   let iconComponent;
-  let colorClass = 'text-primary'; 
+  let colorClass = 'text-primary';
 
   switch (type) {
     case 'hospital':
       iconComponent = <Hospital className="h-5 w-5" />;
-      colorClass = 'text-red-600'; 
+      colorClass = 'text-red-600';
       break;
     case 'doctor':
       iconComponent = <Stethoscope className="h-5 w-5" />;
-      colorClass = 'text-blue-600'; 
+      colorClass = 'text-blue-600';
       break;
-    default: 
+    default:
       iconComponent = <MapPin className="h-5 w-5" />;
-      colorClass = 'text-gray-700'; 
+      colorClass = 'text-gray-700';
   }
 
   const iconHtml = ReactDOMServer.renderToString(
@@ -83,7 +83,7 @@ export function ActualLeafletMap({
     // It should run only once.
     if (typeof window !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        delete (L.Icon.Default.prototype as any)._getIconUrl; 
+        delete (L.Icon.Default.prototype as any)._getIconUrl;
         L.Icon.Default.mergeOptions({
         iconRetinaUrl: '/leaflet/marker-icon-2x.png', // Ensure these paths are correct and files are in /public/leaflet/
         iconUrl: '/leaflet/marker-icon.png',
@@ -102,24 +102,23 @@ export function ActualLeafletMap({
         </div>
     );
   }
-  
-  // Keying the outer div: This forces React to create a new div and a new MapContainer instance
+
+  // Keying the MapContainer directly: This forces React to create a new MapContainer instance
   // (and thus a new Leaflet map) whenever the center or zoom fundamentally changes.
-  // This is a more robust way to ensure cleanup if direct keying on MapContainer itself is problematic.
+  // This is the standard way to ensure cleanup and prevent "already initialized" errors.
   return (
-    <div 
-      key={`${center.lat}-${center.lng}-${zoom}`} 
-      className={cn("h-96 w-full rounded-lg overflow-hidden shadow-md border", className)} 
+    <div
+      className={cn("h-96 w-full rounded-lg overflow-hidden shadow-md border", className)}
       style={style}
     >
       <MapContainer
-        // No key needed here if the parent div is keyed
+        key={`${center.lat}-${center.lng}-${zoom}`} // Key moved here
         center={[center.lat, center.lng]}
         zoom={zoom}
         scrollWheelZoom={true}
         style={{ height: '100%', width: '100%' }}
-        whenCreated={(mapInstance) => { 
-          mapInstanceRef.current = mapInstance; 
+        whenCreated={(mapInstance) => {
+          mapInstanceRef.current = mapInstance;
         }}
       >
         <TileLayer
@@ -128,7 +127,7 @@ export function ActualLeafletMap({
         />
         {markers.map((marker) => {
           const icon = createLeafletIcon(marker.type);
-          if (!icon) return null; 
+          if (!icon) return null;
           return (
             <Marker
               key={marker.id}
