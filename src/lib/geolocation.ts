@@ -3,9 +3,14 @@ export type UserLocation = {
   lng: number;
 };
 
+export const DEFAULT_MELBOURNE_LOCATION: UserLocation = {
+  lat: -37.8136, // Melbourne CBD Latitude
+  lng: 144.9631, // Melbourne CBD Longitude
+};
+
 export function getUserLocation(): Promise<UserLocation> {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
+    if (typeof window !== 'undefined' && !navigator.geolocation) {
       reject(new Error('Geolocation is not supported by your browser.'));
       return;
     }

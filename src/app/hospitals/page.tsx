@@ -4,30 +4,34 @@ import { useState, useEffect } from 'react';
 // Import the dynamically loaded map component
 import { DynamicMapComponent, type MapMarker } from '@/components/common/MapComponent';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { getUserLocation, type UserLocation } from '@/lib/geolocation';
+import { getUserLocation, type UserLocation, DEFAULT_MELBOURNE_LOCATION } from '@/lib/geolocation';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, InfoIcon } from 'lucide-react';
 
 export default function HospitalsPage() {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDefaultLocationUsed, setIsDefaultLocationUsed] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     async function fetchLocationAndHospitals() {
       setIsLoading(true);
       setError(null);
+      setIsDefaultLocationUsed(false);
       try {
         const location = await getUserLocation();
         setUserLocation(location);
       } catch (e) {
         const errorMessage = (e as Error).message || 'Failed to fetch location.';
-        setError(errorMessage);
+        setError(errorMessage); // Keep track of the original error
+        setUserLocation(DEFAULT_MELBOURNE_LOCATION);
+        setIsDefaultLocationUsed(true);
         toast({
           title: 'Location Error',
-          description: errorMessage,
+          description: `${errorMessage} Showing results for a default location in Melbourne.`,
           variant: 'destructive',
         });
       } finally {
@@ -50,6 +54,12 @@ export default function HospitalsPage() {
         <CardHeader>
           <CardTitle className="text-3xl font-bold text-primary">Nearby Hospitals</CardTitle>
           <CardDescription>Find hospitals near your current location.</CardDescription>
+           {isDefaultLocationUsed && (
+            <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground bg-secondary p-3 rounded-md">
+              <InfoIcon className="h-5 w-5 text-primary" />
+              <span>Using a default location in Melbourne as your precise location could not be determined.</span>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading && (
@@ -58,7 +68,7 @@ export default function HospitalsPage() {
               <p className="mt-4 text-muted-foreground">Fetching your location and nearby hospitals...</p>
             </div>
           )}
-          {error && !isLoading && (
+          {error && !isLoading && !isDefaultLocationUsed && ( // Only show full error if not using default
             <div className="flex flex-col items-center justify-center h-64 bg-destructive/10 p-6 rounded-md">
               <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
               <p className="text-destructive font-semibold text-lg">Could not load hospital data.</p>
@@ -66,16 +76,15 @@ export default function HospitalsPage() {
               <p className="mt-4 text-sm text-muted-foreground">Please ensure location services are enabled in your browser and try again.</p>
             </div>
           )}
-          {!isLoading && !error && userLocation && (
-            // Use the DynamicMapComponent here, ensuring userLocation is valid
+          {!isLoading && userLocation && (
             <DynamicMapComponent
-              center={userLocation} // Pass the valid userLocation
+              center={userLocation}
               zoom={13}
               markers={MOCK_HOSPITALS}
               className="h-[600px] w-full rounded-lg overflow-hidden shadow-md border"
             />
           )}
-           {!isLoading && !error && !userLocation && (
+           {!isLoading && !userLocation && ( // This case should ideally not be hit if default is set
              <div className="flex flex-col items-center justify-center h-64">
                 <p className="text-muted-foreground">Your location is not available. Cannot display hospitals.</p>
              </div>

@@ -2,29 +2,29 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-// Import the dynamically loaded map component
 import { DynamicMapComponent, type MapMarker } from '@/components/common/MapComponent';
 import type { UserLocation } from '@/lib/geolocation';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin } from 'lucide-react';
+import { MapPin, InfoIcon } from 'lucide-react';
 
 interface DoctorMapSectionProps {
   userLocation: UserLocation | null;
-  onLocateDoctors: () => void; // Callback to initiate doctor search (can fetch actual doctor data)
+  onLocateDoctors: () => void;
   isLocatingDoctors: boolean;
-  symptoms?: string; // Symptoms might be used to refine search in a future version
+  symptoms?: string;
+  isDefaultLocationUsed: boolean;
 }
 
 export function DoctorMapSection({
   userLocation,
   onLocateDoctors,
   isLocatingDoctors,
-  symptoms
+  symptoms,
+  isDefaultLocationUsed,
 }: DoctorMapSectionProps) {
   const [showMap, setShowMap] = useState(false);
 
-  // Placeholder: In a real app, these would come from an API based on userLocation and symptoms
   const MOCK_DOCTORS: MapMarker[] = userLocation ? [
     { id: 'doc1', position: { lat: userLocation.lat + 0.01, lng: userLocation.lng + 0.01 }, title: 'General Clinic North', type: 'doctor' },
     { id: 'doc2', position: { lat: userLocation.lat - 0.005, lng: userLocation.lng - 0.015 }, title: 'City Health Center', type: 'doctor' },
@@ -32,7 +32,7 @@ export function DoctorMapSection({
   ] : [];
 
   const handleShowMap = () => {
-    onLocateDoctors(); // This might trigger geolocation if not already available
+    onLocateDoctors(); 
     setShowMap(true);
   };
 
@@ -43,6 +43,12 @@ export function DoctorMapSection({
           <MapPin className="h-6 w-6 text-accent" />
           <CardTitle className="text-2xl font-semibold">Find Nearby Doctors</CardTitle>
         </div>
+        {isDefaultLocationUsed && showMap && (
+          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground bg-secondary p-3 rounded-md">
+            <InfoIcon className="h-5 w-5 text-primary" />
+            <span>Showing doctors for a default location in Melbourne as your precise location could not be determined.</span>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="text-center">
         {!showMap && (
@@ -58,19 +64,18 @@ export function DoctorMapSection({
         )}
         {showMap && (
           <>
-            {isLocatingDoctors && <LoadingSpinner className="my-4" />}
+            {isLocatingDoctors && !userLocation && <LoadingSpinner className="my-4" /> /* Show spinner only if still locating AND no location yet */}
 
-            {!isLocatingDoctors && userLocation && (
-              // Use the DynamicMapComponent here
+            {userLocation && (
               <DynamicMapComponent
-                center={userLocation} // Pass the valid userLocation
+                center={userLocation}
                 zoom={14}
                 markers={MOCK_DOCTORS}
                 className="h-[400px] w-full rounded-lg overflow-hidden shadow-md border mt-4"
               />
             )}
 
-            {!isLocatingDoctors && !userLocation && (
+            {!isLocatingDoctors && !userLocation && ( // This case now less likely if default is set, but good fallback
               <p className="text-destructive mt-4">
                 Could not determine your location. Please enable location services and try again.
               </p>

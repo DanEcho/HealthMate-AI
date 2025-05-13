@@ -9,40 +9,37 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { getAIResponse, type AIResponse } from '@/actions/aiActions';
 import { useToast } from '@/hooks/use-toast';
 import type { UserLocation } from '@/lib/geolocation';
-import { getUserLocation as fetchUserLocationUtil } from '@/lib/geolocation';
+import { getUserLocation as fetchUserLocationUtil, DEFAULT_MELBOURNE_LOCATION } from '@/lib/geolocation';
 
 export function AppLayoutClient() {
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [aiResponse, setAiResponse] = useState<AIResponse | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const [isLocating, setIsLocating] = useState(false); // For both initial load and doctor search
+  const [isLocating, setIsLocating] = useState(false);
   const [symptomsForDoctorSearch, setSymptomsForDoctorSearch] = useState<string | undefined>(undefined);
+  const [isDefaultLocationUsed, setIsDefaultLocationUsed] = useState(false);
 
   const { toast } = useToast();
 
   const fetchUserLocation = async () => {
     setIsLocating(true);
+    setIsDefaultLocationUsed(false);
     try {
       const location = await fetchUserLocationUtil();
       setUserLocation(location);
     } catch (error) {
+      setUserLocation(DEFAULT_MELBOURNE_LOCATION);
+      setIsDefaultLocationUsed(true);
       toast({
         title: 'Location Error',
-        description: (error as Error).message || 'Could not fetch your location.',
+        description: `${(error as Error).message || 'Could not fetch your location.'} Showing doctors for a default location in Melbourne.`,
         variant: 'destructive',
       });
-      setUserLocation(null); // Ensure it's null if fetching fails
     } finally {
       setIsLocating(false);
     }
   };
   
-  // Optionally fetch location on initial load, or make it on-demand
-  // useEffect(() => {
-  //   fetchUserLocation();
-  // }, []);
-
-
   const handleSymptomSubmit = async (data: SymptomFormData) => {
     setIsLoadingAI(true);
     setAiResponse(null);
@@ -62,11 +59,9 @@ export function AppLayoutClient() {
   };
 
   const handleLocateDoctors = async () => {
-    if (!userLocation) {
-      await fetchUserLocation(); // Fetch location if not already available
-    }
-    // In a real app, you might pass symptomsForDoctorSearch to an API
-    // For now, it just ensures location is fetched before showing map
+    // Always fetch/re-fetch location when this button is clicked,
+    // to give user a chance to enable permissions or get a better fix.
+    await fetchUserLocation();
   };
 
   return (
@@ -87,8 +82,9 @@ export function AppLayoutClient() {
           <DoctorMapSection 
             userLocation={userLocation} 
             onLocateDoctors={handleLocateDoctors}
-            isLocatingDoctors={isLocating && !userLocation} // Show locating for doctors only if userLocation isn't set yet
+            isLocatingDoctors={isLocating} 
             symptoms={symptomsForDoctorSearch}
+            isDefaultLocationUsed={isDefaultLocationUsed}
           />
         </div>
       )}
