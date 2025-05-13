@@ -6,7 +6,7 @@ import L from 'leaflet'; // Import Leaflet core directly
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import type { UserLocation } from '@/lib/geolocation';
 import { Hospital, Stethoscope, MapPin } from 'lucide-react';
-import { useEffect } from 'react';
+// useEffect is no longer needed here for icon setup if moved to module scope
 import { cn } from '@/lib/utils';
 import ReactDOMServer from 'react-dom/server';
 
@@ -27,6 +27,19 @@ export interface MapComponentProps {
 
 const DEFAULT_ZOOM = 13;
 
+// Perform Leaflet default icon path correction once when the module is loaded.
+// This avoids issues if ActualLeafletMap remounts and tries to modify the prototype multiple times.
+if (typeof window !== 'undefined' && L.Icon.Default.prototype._getIconUrl) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: '/leaflet/marker-icon-2x.png', // Ensure these files exist in public/leaflet
+    iconUrl: '/leaflet/marker-icon.png',       // Ensure these files exist in public/leaflet
+    shadowUrl: '/leaflet/marker-shadow.png',   // Ensure these files exist in public/leaflet
+  });
+}
+
+
 const iconCache: { [key: string]: LeafletIconType | null } = {};
 
 function createLeafletIcon(type: MapMarker['type']): LeafletIconType | null {
@@ -41,15 +54,15 @@ function createLeafletIcon(type: MapMarker['type']): LeafletIconType | null {
   switch (type) {
     case 'hospital':
       iconComponent = <Hospital className="h-5 w-5" />;
-      colorClass = 'text-red-600';
+      colorClass = 'text-red-600'; // Adjusted to a common Tailwind red
       break;
     case 'doctor':
       iconComponent = <Stethoscope className="h-5 w-5" />;
-      colorClass = 'text-blue-600';
+      colorClass = 'text-blue-600'; // Adjusted to a common Tailwind blue
       break;
     default: // general
       iconComponent = <MapPin className="h-5 w-5" />;
-      colorClass = 'text-gray-700';
+      colorClass = 'text-gray-700'; // Adjusted to a common Tailwind gray
   }
 
   const iconHtml = ReactDOMServer.renderToString(
@@ -60,14 +73,15 @@ function createLeafletIcon(type: MapMarker['type']): LeafletIconType | null {
     const newIcon = L.divIcon({
       html: iconHtml,
       className: 'bg-transparent border-none leaflet-custom-div-icon', 
-      iconSize: [24, 24],
-      iconAnchor: [12, 24], 
-      popupAnchor: [0, -24], 
+      iconSize: [24, 24], // Standard size
+      iconAnchor: [12, 24], // Point of the icon that corresponds to marker's location
+      popupAnchor: [0, -24], // Point from which the popup should open relative to the iconAnchor
     });
     iconCache[cacheKey] = newIcon;
     return newIcon;
   } catch (e) {
     console.error("Error creating Leaflet icon:", e);
+    // Fallback to null, Leaflet will use its default icon if this happens.
     return null; 
   }
 }
@@ -81,18 +95,7 @@ export function ActualLeafletMap({
   className,
 }: MapComponentProps) {
 
- useEffect(() => {
-    if (typeof window !== 'undefined') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        delete (L.Icon.Default.prototype as any)._getIconUrl;
-        L.Icon.Default.mergeOptions({
-        iconRetinaUrl: '/leaflet/marker-icon-2x.png', // Ensure these files exist in public/leaflet
-        iconUrl: '/leaflet/marker-icon.png',       // Ensure these files exist in public/leaflet
-        shadowUrl: '/leaflet/marker-shadow.png',   // Ensure these files exist in public/leaflet
-        });
-    }
-  }, []);
-
+  // Icon setup useEffect is removed as it's now handled at module scope.
 
   if (!center) {
     return (
@@ -124,14 +127,13 @@ export function ActualLeafletMap({
         />
         {markers.map((marker) => {
           const icon = createLeafletIcon(marker.type);
-          if (!icon && marker.type !== 'general') { 
-             console.warn(`Custom icon for type ${marker.type} could not be created. Falling back to default marker.`);
-          }
+          // If createLeafletIcon returns null (e.g., on error, or if type is general and we want default),
+          // Leaflet's default icon will be used if 'icon' prop is not passed to Marker or is undefined.
           return (
             <Marker
               key={marker.id}
               position={[marker.position.lat, marker.position.lng]}
-              {...(icon && { icon: icon })} // Use custom icon if available, otherwise default Leaflet icon
+              {...(icon && { icon: icon })} // Use custom icon if available and successfully created
             >
               {marker.title && <Popup>{marker.title}</Popup>}
             </Marker>
@@ -141,3 +143,4 @@ export function ActualLeafletMap({
     </div>
   );
 }
+
