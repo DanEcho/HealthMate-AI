@@ -14,7 +14,7 @@ export type UserLocation = LibUserLocation;
 const DEFAULT_MAP_ZOOM = 13;
 
 const LoadedMap = dynamic(
-  () => import('./MapComponentInternal').then(mod => mod.ActualLeafletMap),
+  () => import('./MapComponentInternal').then(mod => mod => mod.ActualLeafletMap),
   {
     ssr: false, // Crucial for Leaflet to prevent window errors
     loading: () => (
@@ -35,7 +35,12 @@ export function DynamicMapComponent(props: MapComponentProps) {
     );
   }
 
-  // LoadedMap (ActualLeafletMap) will handle keying its internal MapContainer.
-  // No key is applied to LoadedMap itself here based on center/zoom.
-  return <LoadedMap {...props} />;
+  // Keying LoadedMap (ActualLeafletMap) with center and zoom.
+  // This forces a new instance if the center/zoom fundamentally changes.
+  const mapKey = `${props.center.lat}-${props.center.lng}-${props.zoom || DEFAULT_MAP_ZOOM}`;
+  
+  // The ActualLeafletMap component (LoadedMap) internally keys its MapContainer.
+  // By also keying LoadedMap here, we ensure that if DynamicMapComponent
+  // receives new center/zoom, it forces a full re-mount of ActualLeafletMap.
+  return <LoadedMap key={mapKey} {...props} />;
 }
