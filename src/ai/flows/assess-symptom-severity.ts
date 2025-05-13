@@ -41,14 +41,17 @@ const assessSymptomSeverityPrompt = ai.definePrompt({
   name: 'assessSymptomSeverityPrompt',
   input: {schema: AssessSymptomSeverityInputSchema},
   output: {schema: AssessSymptomSeverityOutputSchema},
-  prompt: `You are an AI-powered health assistant that assesses the severity of a user's condition based on their reported symptoms.
+  prompt: `You are an AI-powered health assistant. Your task is to analyze user-reported symptoms.
+  Based on these symptoms, you must return a JSON object with exactly two keys:
+  1. "severityAssessment": A string describing the potential severity of the condition.
+  2. "nextStepsRecommendation": A string containing actionable next steps for the user.
 
-  Symptoms: {{{symptoms}}}
+  If the symptoms appear severe, your "nextStepsRecommendation" must strongly advise seeking professional medical attention, including visiting a doctor or emergency services as appropriate.
+  Focus on providing clear, helpful, and responsible information. Ensure your entire response is a single, valid JSON object adhering to this structure.
 
-  Provide a severity assessment and recommend appropriate next steps for the user.
-  Indicate when professional medical advice is needed, and suggest the user to visit the nearest doctor if symptoms appear severe.
-  Focus on providing helpful and clear information.
-  `, // Changed from Handlebars-style to ES6 template literals
+  User Symptoms:
+  {{{symptoms}}}
+  `,
 });
 
 const assessSymptomSeverityFlow = ai.defineFlow(
@@ -59,6 +62,10 @@ const assessSymptomSeverityFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await assessSymptomSeverityPrompt(input);
-    return output!;
+    if (!output) {
+      throw new Error('AI failed to generate severity assessment.');
+    }
+    return output;
   }
 );
+
