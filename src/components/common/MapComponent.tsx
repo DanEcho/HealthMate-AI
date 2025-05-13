@@ -10,6 +10,8 @@ export type MapMarker = InternalMapMarker;
 export type MapComponentProps = InternalMapProps;
 export type UserLocation = LibUserLocation;
 
+const DEFAULT_ZOOM = 13; // Ensure DEFAULT_ZOOM is defined or imported if used in key
+
 const LoadedMap = dynamic(
   () => import('./MapComponentInternal').then(mod => mod.ActualLeafletMap),
   {
@@ -32,8 +34,10 @@ export function DynamicMapComponent(props: MapComponentProps) {
     );
   }
 
-  // Removed the key from LoadedMap.
-  // We will rely on MapContainer to handle prop changes,
-  // assisted by a new MapUpdater component within ActualLeafletMap.
-  return <LoadedMap {...props} />;
+  // Keying LoadedMap (ActualLeafletMap) by center and zoom.
+  // This ensures that if these fundamental props change, React unmounts the old
+  // map component instance and mounts a new one, which gets a fresh MapContainer.
+  // This can help avoid "Map container is already initialized" if updates to an
+  // existing instance are problematic or if cleanup of the old instance is incomplete.
+  return <LoadedMap {...props} key={`${props.center.lat}-${props.center.lng}-${props.zoom || DEFAULT_ZOOM}`} />;
 }

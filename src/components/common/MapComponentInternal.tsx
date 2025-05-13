@@ -27,20 +27,19 @@ export interface MapComponentProps {
 
 const DEFAULT_ZOOM = 13;
 
-// It's important that Leaflet's default icon images are available in your /public/leaflet/ directory.
-// - /public/leaflet/marker-icon.png
-// - /public/leaflet/marker-icon-2x.png
-// - /public/leaflet/marker-shadow.png
-// The following code configures Leaflet to find them there if a Marker is rendered without a custom icon.
+// Configure Leaflet's default icon paths
+// This ensures that if a Marker is rendered without a custom icon, Leaflet can find the default images.
+// These files (marker-icon.png, marker-icon-2x.png, marker-shadow.png) should be in your /public/leaflet/ directory.
 if (typeof window !== 'undefined') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (L.Icon.Default && L.Icon.Default.prototype && (L.Icon.Default.prototype as any)._getIconUrl) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         delete (L.Icon.Default.prototype as any)._getIconUrl;
     }
     L.Icon.Default.mergeOptions({
-        iconRetinaUrl: '/leaflet/marker-icon-2x.png',
-        iconUrl: '/leaflet/marker-icon.png',
-        shadowUrl: '/leaflet/marker-shadow.png',
+        iconRetinaUrl: '/leaflet/marker-icon-2x.png', // Adjusted path
+        iconUrl: '/leaflet/marker-icon.png',         // Adjusted path
+        shadowUrl: '/leaflet/marker-shadow.png',     // Adjusted path
     });
 }
 
@@ -92,13 +91,15 @@ function createLeafletIcon(type: MapMarker['type']): LeafletIconType | null {
   }
 }
 
-// Helper component to update map view when props change
+// Helper component to update map view when props change (center, zoom)
+// This is particularly useful if the MapContainer instance is stable (not re-keyed).
+// If MapContainer's parent is keyed (as in the current DynamicMapComponent strategy),
+// this MapUpdater will run on a new map instance each time the key changes.
 function MapUpdater({ center, zoom }: { center: UserLocation; zoom: number }) {
   const map = useMap();
   useEffect(() => {
-    if (center) {
-      map.setView([center.lat, center.lng], zoom);
-    }
+    // 'center' is guaranteed by ActualLeafletMap's check
+    map.setView([center.lat, center.lng], zoom);
   }, [center, zoom, map]);
   return null;
 }
@@ -119,19 +120,22 @@ export function ActualLeafletMap({
     );
   }
   
+  // The outer div provides styling and dimensions for the map.
+  // MapContainer itself should not be keyed here if its parent component (ActualLeafletMap,
+  // when used as LoadedMap in DynamicMapComponent) is already being keyed.
+  // Keying the parent ensures this whole component (including MapContainer) is new on key change.
   return (
     <div
       className={cn("h-96 w-full rounded-lg overflow-hidden shadow-md border", className)}
       style={style}
     >
       <MapContainer
-        // No explicit key here; relying on parent component (DynamicMapComponent) NOT keying
-        // ActualLeafletMap, so this MapContainer instance persists.
-        // The MapUpdater component handles view changes.
+        // No explicit key here. If DynamicMapComponent keys LoadedMap (this component),
+        // this MapContainer will be part of a new component instance upon key change.
         center={[center.lat, center.lng]}
         zoom={zoom}
         scrollWheelZoom={true}
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: '100%', width: '100%' }} // MapContainer needs explicit dimensions
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -141,7 +145,7 @@ export function ActualLeafletMap({
           const icon = createLeafletIcon(marker.type);
           return (
             <Marker
-              key={marker.id}
+              key={marker.id} // Markers should be keyed by a stable ID
               position={[marker.position.lat, marker.position.lng]}
               {...(icon && { icon: icon })} 
             >
@@ -149,6 +153,8 @@ export function ActualLeafletMap({
             </Marker>
           );
         })}
+        {/* MapUpdater handles changes if the MapContainer instance were to persist. 
+            With parent keying, it runs on each new map instance. */}
         <MapUpdater center={center} zoom={zoom} />
       </MapContainer>
     </div>
