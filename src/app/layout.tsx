@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { AppShell } from '@/components/layout/AppShell';
-// Removed GoogleMapsProvider import
 import { Toaster } from '@/components/ui/toaster';
 
 const geistSans = Geist({
@@ -29,7 +28,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {/* Removed GoogleMapsProvider wrapper */}
         <AppShell>
           {children}
         </AppShell>

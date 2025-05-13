@@ -3,9 +3,9 @@
 import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
 import type { MapComponentProps as InternalMapProps, MapMarker as InternalMapMarker } from './MapComponentInternal';
-import type { UserLocation as LibUserLocation } from '@/lib/geolocation'; // Ensure UserLocation is consistently typed
+import type { UserLocation as LibUserLocation } from '@/lib/geolocation';
 
-// Re-export types for consumers
+// Re-export types for consumers of DynamicMapComponent
 export type MapMarker = InternalMapMarker;
 export type MapComponentProps = InternalMapProps;
 export type UserLocation = LibUserLocation;
@@ -14,7 +14,7 @@ export type UserLocation = LibUserLocation;
 const LoadedMap = dynamic(
   () => import('./MapComponentInternal').then(mod => mod.ActualLeafletMap),
   {
-    ssr: false,
+    ssr: false, // Crucial for Leaflet to prevent window errors
     loading: () => (
       <div className={cn("flex items-center justify-center h-96 w-full bg-muted rounded-lg")}>
         <p className="text-muted-foreground">Loading map...</p>

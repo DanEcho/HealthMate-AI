@@ -1,8 +1,7 @@
-// src/components/common/MapComponentInternal.tsx
 'use client';
 
 import 'leaflet/dist/leaflet.css';
-import type { Icon as LeafletIconType } from 'leaflet'; // Renamed to avoid conflict if Icon is used elsewhere
+import type { Icon as LeafletIconType } from 'leaflet';
 import L from 'leaflet'; // Import Leaflet core directly
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import type { UserLocation } from '@/lib/geolocation';
@@ -13,7 +12,7 @@ import ReactDOMServer from 'react-dom/server';
 
 export interface MapMarker {
   id: string;
-  position: UserLocation; // Assuming UserLocation is { lat: number; lng: number }
+  position: UserLocation;
   title?: string;
   type?: 'hospital' | 'doctor' | 'general';
 }
@@ -31,48 +30,47 @@ const DEFAULT_ZOOM = 13;
 const iconCache: { [key: string]: LeafletIconType | null } = {};
 
 function createLeafletIcon(type: MapMarker['type']): LeafletIconType | null {
-  if (typeof window === 'undefined') { // Should not be strictly necessary here due to 'use client' and dynamic import of this module
-    return null;
-  }
-
+  // This function runs on the client due to 'use client' and dynamic import of this module.
   const cacheKey = type || 'general';
   if (iconCache[cacheKey]) {
     return iconCache[cacheKey];
   }
 
   let iconComponent;
-  let colorClass = 'text-primary';
+  let colorClass = 'text-primary'; // Default color
 
   switch (type) {
     case 'hospital':
       iconComponent = <Hospital className="h-5 w-5" />;
-      colorClass = 'text-red-600';
+      colorClass = 'text-red-600'; // Example: Red for hospitals
       break;
     case 'doctor':
       iconComponent = <Stethoscope className="h-5 w-5" />;
-      colorClass = 'text-blue-600';
+      colorClass = 'text-blue-600'; // Example: Blue for doctors
       break;
-    default:
+    default: // General marker
       iconComponent = <MapPin className="h-5 w-5" />;
-      colorClass = 'text-gray-700';
+      colorClass = 'text-gray-700'; // Example: Grey for general
   }
 
   const iconHtml = ReactDOMServer.renderToString(
+    // Apply color directly to the SVG wrapper
     <span className={colorClass}>{iconComponent}</span>
   );
 
   const newIcon = L.divIcon({
     html: iconHtml,
     className: 'bg-transparent border-none', // Important for custom HTML icons
-    iconSize: [24, 24],
-    iconAnchor: [12, 24], // Adjust as needed
-    popupAnchor: [0, -24], // Adjust as needed
+    iconSize: [24, 24], // Adjust as needed
+    iconAnchor: [12, 24], // Point of the icon that corresponds to marker's location
+    popupAnchor: [0, -24], // Point from which the popup should open relative to the iconAnchor
   });
 
   iconCache[cacheKey] = newIcon;
   return newIcon;
 }
 
+// Component to handle map view changes (center, zoom)
 function ChangeView({ center, zoom }: { center: L.LatLngExpression; zoom: number }) {
   const map = useMap();
   useEffect(() => {
@@ -92,12 +90,13 @@ export function ActualLeafletMap({
 }: MapComponentProps) {
   const mapRef = useRef<L.Map | null>(null);
 
-  useEffect(() => {
-    // Set default icon paths for Leaflet. These files need to be in `public/leaflet/`
-    // This is important if default Leaflet markers are ever used or if react-leaflet relies on them.
+ useEffect(() => {
+    // This effect ensures Leaflet's default icon paths are set up.
+    // These files (marker-icon.png, marker-icon-2x.png, marker-shadow.png)
+    // would need to be placed in the `public/leaflet/` directory by the user.
     if (typeof window !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        delete (L.Icon.Default.prototype as any)._getIconUrl; // Necessary to override default behavior
         L.Icon.Default.mergeOptions({
         iconRetinaUrl: '/leaflet/marker-icon-2x.png',
         iconUrl: '/leaflet/marker-icon.png',
@@ -106,6 +105,14 @@ export function ActualLeafletMap({
     }
   }, []);
 
+
+  if (!center) {
+    // This case should ideally be handled by the DynamicMapComponent wrapper
+    return <div className={cn("flex items-center justify-center h-full w-full bg-muted", className)} style={style}><p>Map center not provided.</p></div>;
+  }
+  
+  // MapContainer itself handles prop updates like 'center' and 'zoom' reactively.
+  // No need for a key on the div wrapper to force re-mounts for center changes.
   return (
     <div className={cn("h-96 w-full rounded-lg overflow-hidden shadow-md border", className)} style={style}>
       <MapContainer
@@ -122,7 +129,7 @@ export function ActualLeafletMap({
         />
         {markers.map((marker) => {
           const icon = createLeafletIcon(marker.type);
-          if (!icon) return null;
+          if (!icon) return null; // Safety check, though createLeafletIcon should always return an icon
           return (
             <Marker
               key={marker.id}
