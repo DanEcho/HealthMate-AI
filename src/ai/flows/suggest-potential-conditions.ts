@@ -61,12 +61,40 @@ const suggestPotentialConditionsFlow = ai.defineFlow(
     inputSchema: SuggestPotentialConditionsInputSchema,
     outputSchema: SuggestPotentialConditionsOutputSchema,
   },
-  async input => {
-    const {output} = await suggestPotentialConditionsPrompt(input);
-     if (!output) {
-      throw new Error('AI failed to suggest potential conditions.');
+  async (input: SuggestPotentialConditionsInput) => {
+    console.log(`[suggestPotentialConditionsFlow] Starting with input: ${JSON.stringify(input, null, 2)}`);
+    try {
+      const result = await suggestPotentialConditionsPrompt(input);
+      console.log(`[suggestPotentialConditionsFlow] Raw prompt result object: ${JSON.stringify(result, null, 2)}`);
+
+      if (result.response && result.response.candidates && result.response.candidates.length > 0) {
+        const candidate = result.response.candidates[0];
+        console.log(`[suggestPotentialConditionsFlow] Candidate finish reason: ${candidate.finishReason}, message: ${candidate.finishMessage}`);
+        if (candidate.safetyRatings) {
+            console.log(`[suggestPotentialConditionsFlow] Safety ratings: ${JSON.stringify(candidate.safetyRatings, null, 2)}`);
+        }
+        if (candidate.text) {
+            console.log(`[suggestPotentialConditionsFlow] Candidate raw text response: ${candidate.text}`);
+        }
+      } else if (result.response) {
+        console.log(`[suggestPotentialConditionsFlow] Prompt response did not contain candidates: ${JSON.stringify(result.response, null, 2)}`);
+      }
+
+      if (!result.output) {
+        console.error(`[suggestPotentialConditionsFlow] AI failed to generate structured output. Input was: ${JSON.stringify(input, null, 2)}. Full prompt response object: ${JSON.stringify(result, null, 2)}`);
+        throw new Error('AI failed to suggest potential conditions. The model response was empty or did not conform to the expected output structure.');
+      }
+      
+      // Zod parsing ensures this is an array of the correct type.
+      // No need to check !Array.isArray(result.output) as Zod handles it.
+      // An empty array is a valid output for this flow.
+
+      console.log(`[suggestPotentialConditionsFlow] Successfully generated structured output: ${JSON.stringify(result.output, null, 2)}`);
+      return result.output;
+    } catch (err) {
+      const error = err as Error;
+      console.error(`[suggestPotentialConditionsFlow] Error during flow execution: ${error.message}`, error.stack);
+      throw new Error(`Error in suggesting potential conditions: ${error.message || 'Unknown error'}`);
     }
-    return output;
   }
 );
-

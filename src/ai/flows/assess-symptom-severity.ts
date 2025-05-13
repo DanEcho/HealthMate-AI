@@ -80,12 +80,43 @@ const assessSymptomSeverityFlow = ai.defineFlow(
     inputSchema: AssessSymptomSeverityInputSchema,
     outputSchema: AssessSymptomSeverityOutputSchema,
   },
-  async input => {
-    const {output} = await assessSymptomSeverityPrompt(input);
-    if (!output) {
-      throw new Error('AI failed to generate severity assessment.');
+  async (input: AssessSymptomSeverityInput) => {
+    console.log(`[assessSymptomSeverityFlow] Starting with input: ${JSON.stringify(input, null, 2)}`);
+    try {
+      const result = await assessSymptomSeverityPrompt(input);
+      console.log(`[assessSymptomSeverityFlow] Raw prompt result object: ${JSON.stringify(result, null, 2)}`);
+      
+      if (result.response && result.response.candidates && result.response.candidates.length > 0) {
+        const candidate = result.response.candidates[0];
+        console.log(`[assessSymptomSeverityFlow] Candidate finish reason: ${candidate.finishReason}, message: ${candidate.finishMessage}`);
+        if (candidate.safetyRatings) {
+            console.log(`[assessSymptomSeverityFlow] Safety ratings: ${JSON.stringify(candidate.safetyRatings, null, 2)}`);
+        }
+         if (candidate.text) {
+            console.log(`[assessSymptomSeverityFlow] Candidate raw text response: ${candidate.text}`);
+        }
+      } else if (result.response) {
+        console.log(`[assessSymptomSeverityFlow] Prompt response did not contain candidates: ${JSON.stringify(result.response, null, 2)}`);
+      }
+
+
+      if (!result.output) {
+        console.error(`[assessSymptomSeverityFlow] AI failed to generate structured output. Input was: ${JSON.stringify(input, null, 2)}. Full prompt response object: ${JSON.stringify(result, null, 2)}`);
+        throw new Error('AI failed to generate severity assessment. The model response was empty or did not conform to the expected output structure.');
+      }
+      
+      // Zod parsing is handled by Genkit, but an explicit check for key fields can be useful for debugging.
+      if (typeof result.output.severityAssessment !== 'string' || typeof result.output.nextStepsRecommendation !== 'string') {
+        console.error(`[assessSymptomSeverityFlow] AI output is missing required fields or has incorrect types. Output: ${JSON.stringify(result.output, null, 2)}`);
+        throw new Error('AI response for severity assessment is incomplete or malformed.');
+      }
+
+      console.log(`[assessSymptomSeverityFlow] Successfully generated structured output: ${JSON.stringify(result.output, null, 2)}`);
+      return result.output;
+    } catch (err) {
+      const error = err as Error;
+      console.error(`[assessSymptomSeverityFlow] Error during flow execution: ${error.message}`, error.stack);
+      throw new Error(`Error in assessing symptom severity: ${error.message || 'Unknown error'}`);
     }
-    return output;
   }
 );
-
