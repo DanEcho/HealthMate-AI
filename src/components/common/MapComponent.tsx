@@ -14,7 +14,7 @@ export type UserLocation = LibUserLocation;
 const DEFAULT_MAP_ZOOM = 13;
 
 const LoadedMap = dynamic(
-  () => import('./MapComponentInternal').then(mod => mod => mod.ActualLeafletMap),
+  () => import('./MapComponentInternal').then(mod => mod.ActualLeafletMap), // Corrected: mod => mod.ActualLeafletMap
   {
     ssr: false, // Crucial for Leaflet to prevent window errors
     loading: () => (
@@ -44,3 +44,4 @@ export function DynamicMapComponent(props: MapComponentProps) {
   // receives new center/zoom, it forces a full re-mount of ActualLeafletMap.
   return <LoadedMap key={mapKey} {...props} />;
 }
+

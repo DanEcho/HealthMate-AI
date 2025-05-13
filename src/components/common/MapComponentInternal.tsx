@@ -86,9 +86,9 @@ export function ActualLeafletMap({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         delete (L.Icon.Default.prototype as any)._getIconUrl;
         L.Icon.Default.mergeOptions({
-        iconRetinaUrl: '/leaflet/marker-icon-2x.png',
-        iconUrl: '/leaflet/marker-icon.png',
-        shadowUrl: '/leaflet/marker-shadow.png',
+        iconRetinaUrl: '/leaflet/marker-icon-2x.png', // Ensure these files exist in public/leaflet
+        iconUrl: '/leaflet/marker-icon.png',       // Ensure these files exist in public/leaflet
+        shadowUrl: '/leaflet/marker-shadow.png',   // Ensure these files exist in public/leaflet
         });
     }
   }, []);
@@ -102,18 +102,17 @@ export function ActualLeafletMap({
     );
   }
   
-  // Key the MapContainer by center and zoom.
-  // This forces React to create a new MapContainer instance (and thus a new Leaflet map)
-  // whenever the center or zoom fundamentally changes, avoiding the "already initialized" error.
-  const mapContainerKey = `${center.lat}-${center.lng}-${zoom}`;
-
+  // The parent DynamicMapComponent keys this ActualLeafletMap component.
+  // When that key changes (due to center/zoom prop changes), this entire component
+  // instance is replaced, ensuring MapContainer gets re-initialized correctly.
   return (
     <div
       className={cn("h-96 w-full rounded-lg overflow-hidden shadow-md border", className)}
       style={style}
     >
       <MapContainer
-        key={mapContainerKey} // Key applied here
+        // No explicit key here; relying on parent component's (LoadedMap/ActualLeafletMap) key
+        // to force re-mount when center/zoom props change fundamentally.
         center={[center.lat, center.lng]}
         zoom={zoom}
         scrollWheelZoom={true}
@@ -132,7 +131,7 @@ export function ActualLeafletMap({
             <Marker
               key={marker.id}
               position={[marker.position.lat, marker.position.lng]}
-              {...(icon && { icon: icon })}
+              {...(icon && { icon: icon })} // Use custom icon if available, otherwise default Leaflet icon
             >
               {marker.title && <Popup>{marker.title}</Popup>}
             </Marker>
