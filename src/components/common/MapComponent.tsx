@@ -10,11 +10,11 @@ export type MapMarker = InternalMapMarker;
 export type MapComponentProps = InternalMapProps;
 export type UserLocation = LibUserLocation;
 
-// Default zoom value used in MapComponentInternal
+// Default zoom value used in MapComponentInternal and for key generation
 const DEFAULT_MAP_ZOOM = 13;
 
 const LoadedMap = dynamic(
-  () => import('./MapComponentInternal').then(mod => mod.ActualLeafletMap), // Corrected: mod => mod.ActualLeafletMap
+  () => import('./MapComponentInternal').then(mod => mod.ActualLeafletMap),
   {
     ssr: false, // Crucial for Leaflet to prevent window errors
     loading: () => (
@@ -35,13 +35,11 @@ export function DynamicMapComponent(props: MapComponentProps) {
     );
   }
 
-  // Keying LoadedMap (ActualLeafletMap) with center and zoom.
-  // This forces a new instance if the center/zoom fundamentally changes.
+  // Keying LoadedMap (which is ActualLeafletMap) with center and zoom.
+  // This forces React to create a new instance of ActualLeafletMap (and thus MapContainer)
+  // if the center or zoom fundamentally changes. This is the standard way to handle
+  // the "Map container is already initialized" error by ensuring a clean unmount and remount.
   const mapKey = `${props.center.lat}-${props.center.lng}-${props.zoom || DEFAULT_MAP_ZOOM}`;
   
-  // The ActualLeafletMap component (LoadedMap) internally keys its MapContainer.
-  // By also keying LoadedMap here, we ensure that if DynamicMapComponent
-  // receives new center/zoom, it forces a full re-mount of ActualLeafletMap.
   return <LoadedMap key={mapKey} {...props} />;
 }
-
