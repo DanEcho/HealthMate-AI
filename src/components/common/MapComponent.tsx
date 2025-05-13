@@ -35,10 +35,7 @@ export function DynamicMapComponent(props: MapComponentProps) {
     );
   }
 
-  // Key the LoadedMap instance based on center and zoom.
-  // This forces a full remount of ActualLeafletMap when center or zoom changes,
-  // preventing "Map container already initialized" errors.
-  const mapKey = `${props.center.lat}-${props.center.lng}-${props.zoom || DEFAULT_MAP_ZOOM}`;
-
-  return <LoadedMap {...props} key={mapKey} />;
+  // LoadedMap (ActualLeafletMap) will handle keying its internal MapContainer.
+  // No key is applied to LoadedMap itself here based on center/zoom.
+  return <LoadedMap {...props} />;
 }
