@@ -3,11 +3,12 @@
 import 'leaflet/dist/leaflet.css';
 import type { Icon as LeafletIconType } from 'leaflet';
 import L from 'leaflet'; // Import Leaflet core directly
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import type { UserLocation } from '@/lib/geolocation';
 import { Hospital, Stethoscope, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactDOMServer from 'react-dom/server';
+import React, { useEffect } from 'react';
 
 export interface MapMarker {
   id: string;
@@ -26,15 +27,16 @@ export interface MapComponentProps {
 
 const DEFAULT_ZOOM = 13;
 
-// Perform Leaflet default icon path correction once when the module is loaded.
+// It's important that Leaflet's default icon images are available in your /public/leaflet/ directory.
+// - /public/leaflet/marker-icon.png
+// - /public/leaflet/marker-icon-2x.png
+// - /public/leaflet/marker-shadow.png
+// The following code configures Leaflet to find them there if a Marker is rendered without a custom icon.
 if (typeof window !== 'undefined') {
-    // Check if L.Icon.Default exists and has the _getIconUrl property
     if (L.Icon.Default && L.Icon.Default.prototype && (L.Icon.Default.prototype as any)._getIconUrl) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         delete (L.Icon.Default.prototype as any)._getIconUrl;
     }
-    // Always merge options, whether _getIconUrl was deleted or not,
-    // to ensure paths are set if they haven't been.
     L.Icon.Default.mergeOptions({
         iconRetinaUrl: '/leaflet/marker-icon-2x.png',
         iconUrl: '/leaflet/marker-icon.png',
@@ -46,7 +48,7 @@ if (typeof window !== 'undefined') {
 const iconCache: { [key: string]: LeafletIconType | null } = {};
 
 function createLeafletIcon(type: MapMarker['type']): LeafletIconType | null {
-  if (typeof window === 'undefined') return null; // Cannot create icons on server
+  if (typeof window === 'undefined') return null; 
 
   const cacheKey = type || 'general';
   if (iconCache[cacheKey]) {
@@ -54,7 +56,7 @@ function createLeafletIcon(type: MapMarker['type']): LeafletIconType | null {
   }
 
   let iconComponent;
-  let colorClass = 'text-primary'; // Default color
+  let colorClass = 'text-primary'; 
 
   switch (type) {
     case 'hospital':
@@ -65,7 +67,7 @@ function createLeafletIcon(type: MapMarker['type']): LeafletIconType | null {
       iconComponent = <Stethoscope className="h-5 w-5" />;
       colorClass = 'text-blue-600'; 
       break;
-    default: // general
+    default: 
       iconComponent = <MapPin className="h-5 w-5" />;
       colorClass = 'text-gray-700'; 
   }
@@ -90,6 +92,16 @@ function createLeafletIcon(type: MapMarker['type']): LeafletIconType | null {
   }
 }
 
+// Helper component to update map view when props change
+function MapUpdater({ center, zoom }: { center: UserLocation; zoom: number }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView([center.lat, center.lng], zoom);
+    }
+  }, [center, zoom, map]);
+  return null;
+}
 
 export function ActualLeafletMap({
   center,
@@ -107,17 +119,15 @@ export function ActualLeafletMap({
     );
   }
   
-  // The parent DynamicMapComponent keys this ActualLeafletMap component (as LoadedMap).
-  // When that key changes (due to center/zoom prop changes), this entire component
-  // instance is replaced, ensuring MapContainer gets re-initialized correctly.
   return (
     <div
       className={cn("h-96 w-full rounded-lg overflow-hidden shadow-md border", className)}
       style={style}
     >
       <MapContainer
-        // No explicit key here; relying on parent component's (LoadedMap/ActualLeafletMap) key
-        // to force re-mount when center/zoom props change fundamentally.
+        // No explicit key here; relying on parent component (DynamicMapComponent) NOT keying
+        // ActualLeafletMap, so this MapContainer instance persists.
+        // The MapUpdater component handles view changes.
         center={[center.lat, center.lng]}
         zoom={zoom}
         scrollWheelZoom={true}
@@ -139,6 +149,7 @@ export function ActualLeafletMap({
             </Marker>
           );
         })}
+        <MapUpdater center={center} zoom={zoom} />
       </MapContainer>
     </div>
   );

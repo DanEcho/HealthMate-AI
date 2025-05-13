@@ -1,0 +1,8 @@
+Please place Leaflet default marker icon images in this directory:
+- marker-icon.png
+- marker-icon-2x.png
+- marker-shadow.png
+
+These are used by Leaflet if custom icons are not provided or fail to load for map markers.
+The application is configured to look for them in /leaflet/ (which maps to this public/leaflet/ directory).
+You can obtain these images from the Leaflet distribution (e.g., node_modules/leaflet/dist/images/).
