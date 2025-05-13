@@ -10,6 +10,8 @@ export type MapMarker = InternalMapMarker;
 export type MapComponentProps = InternalMapProps;
 export type UserLocation = LibUserLocation;
 
+// Default zoom value used in MapComponentInternal
+const DEFAULT_MAP_ZOOM = 13;
 
 const LoadedMap = dynamic(
   () => import('./MapComponentInternal').then(mod => mod.ActualLeafletMap),
@@ -32,5 +34,11 @@ export function DynamicMapComponent(props: MapComponentProps) {
       </div>
     );
   }
-  return <LoadedMap {...props} />;
+
+  // Key the LoadedMap instance based on center and zoom.
+  // This forces a full remount of ActualLeafletMap when center or zoom changes,
+  // preventing "Map container already initialized" errors.
+  const mapKey = `${props.center.lat}-${props.center.lng}-${props.zoom || DEFAULT_MAP_ZOOM}`;
+
+  return <LoadedMap {...props} key={mapKey} />;
 }
