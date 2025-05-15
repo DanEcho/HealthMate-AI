@@ -147,7 +147,7 @@ export function AppLayoutClient() {
     setIsDefaultLocationUsed(false);
     setIsDoctorMapSectionVisible(false);
     toast({ title: "New Chat Started", description: "Please enter your symptoms." });
-  }, [toast]); // Dependencies can be added if it uses other state setters from AppLayoutClient
+  }, [toast]); 
 
   const fetchUserLocationForSession = async (sessionIdToUpdate?: string): Promise<UserLocation | null> => {
     const targetSessionId = sessionIdToUpdate || activeSessionId;
@@ -157,23 +157,23 @@ export function AppLayoutClient() {
     let fetchedLocation: UserLocation | null = null;
     try {
       fetchedLocation = await fetchUserLocationUtil();
-      setUserLocation(fetchedLocation); // Update main UI
-      if (targetSessionId) { // Also save to session if a session context exists
+      setUserLocation(fetchedLocation); 
+      if (targetSessionId) { 
         updateActiveSessionInStorage(session => ({
           ...session,
           sessionUserLocation: fetchedLocation,
-          isDoctorMapSectionVisible: true, // This implies map should be visible
+          isDoctorMapSectionVisible: true, 
         }));
       }
     } catch (error) {
       fetchedLocation = DEFAULT_MELBOURNE_LOCATION;
-      setUserLocation(fetchedLocation); // Update main UI
+      setUserLocation(fetchedLocation); 
       setIsDefaultLocationUsed(true);
-      if (targetSessionId) { // Also save to session if a session context exists
+      if (targetSessionId) { 
         updateActiveSessionInStorage(session => ({
           ...session,
           sessionUserLocation: fetchedLocation,
-          isDoctorMapSectionVisible: true, // This implies map should be visible
+          isDoctorMapSectionVisible: true, 
         }));
       }
       toast({
@@ -193,7 +193,7 @@ export function AppLayoutClient() {
     if (sessionToLoad) {
       setActiveSessionId(sessionToLoad.id);
       setCurrentSymptomsInput(sessionToLoad.currentSymptoms);
-      setSymptomsForDoctorSearch(sessionToLoad.currentSymptoms); // For doctor search context
+      setSymptomsForDoctorSearch(sessionToLoad.currentSymptoms); 
       setCurrentImageDataUri(sessionToLoad.currentImageDataUri);
       setAiResponse(sessionToLoad.aiResponse);
       setVisualFollowUpResult(sessionToLoad.visualFollowUpResult);
@@ -204,14 +204,13 @@ export function AppLayoutClient() {
 
       if (mapVisibleInSession) {
         if (sessionToLoad.sessionUserLocation) {
-          setUserLocation(sessionToLoad.sessionUserLocation); // Use location stored in session
+          setUserLocation(sessionToLoad.sessionUserLocation); 
            setIsDefaultLocationUsed(sessionToLoad.sessionUserLocation.lat === DEFAULT_MELBOURNE_LOCATION.lat && sessionToLoad.sessionUserLocation.lng === DEFAULT_MELBOURNE_LOCATION.lng);
         } else {
-          // If map was visible in session but no location stored (older session), fetch current
           await fetchUserLocationForSession(sessionToLoad.id); 
         }
       } else {
-        setUserLocation(null); // If map wasn't meant to be visible, clear current location
+        setUserLocation(null); 
         setIsDefaultLocationUsed(false);
       }
       
@@ -224,7 +223,7 @@ export function AppLayoutClient() {
   const deleteSession = (sessionId: string) => {
     setChatSessions(prevSessions => prevSessions.filter(s => s.id !== sessionId));
     if (activeSessionId === sessionId) {
-      startNewSession(); // If active session is deleted, start a new one
+      startNewSession(); 
     }
     toast({ title: "Chat Deleted", description: "The chat session has been removed." });
   };
@@ -243,8 +242,8 @@ export function AppLayoutClient() {
   };
 
   const _initiateAndProcessNewChat = async (data: SymptomFormData) => {
-    setCurrentSymptomsInput(data.symptoms); // Set for current view
-    setSymptomsForDoctorSearch(data.symptoms); // For doctor search context
+    setCurrentSymptomsInput(data.symptoms); 
+    setSymptomsForDoctorSearch(data.symptoms); 
 
     let processedImageDataUri: string | undefined = undefined;
     if (data.image && data.image.length > 0) {
@@ -258,23 +257,20 @@ export function AppLayoutClient() {
             });
         } catch (error) {
             toast({ title: 'Image Error', description: (error as Error).message || 'Could not process image.', variant: 'destructive'});
-            // Keep processedImageDataUri as undefined
         }
     }
-    setCurrentImageDataUri(processedImageDataUri); // Set for current view
+    setCurrentImageDataUri(processedImageDataUri); 
 
-    // Reset follow-ups for a new analysis
     setVisualFollowUpResult(null);
     setChatMessages([]);
 
     const newAIResponse = await _processChatData(data.symptoms, processedImageDataUri);
     
-    if (!newAIResponse) { // If AI processing failed (e.g. empty symptoms caught by getAIResponse, or other errors)
-        // Toast for error already shown by _processChatData or getAIResponse
-        setIsLoadingAI(false); // Ensure loading state is reset
-        return; // Do not proceed to create/save session
+    if (!newAIResponse) { 
+        setIsLoadingAI(false); 
+        return; 
     }
-    setAiResponse(newAIResponse); // Update main AI response state for UI
+    setAiResponse(newAIResponse); 
 
     const newSessionId = `session_${Date.now()}`;
     const initialTimestamp = new Date().toISOString();
@@ -283,7 +279,7 @@ export function AppLayoutClient() {
     if (data.symptoms && data.symptoms.trim().length > 0) {
       const firstPart = data.symptoms.substring(0, 35);
       baseTitle = firstPart.length < data.symptoms.length ? firstPart + '...' : firstPart;
-    } else { // Should not happen if symptom check is done before calling this
+    } else { 
       baseTitle = `Chat from ${new Date(initialTimestamp).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
     }
     
@@ -311,7 +307,6 @@ export function AppLayoutClient() {
     setChatSessions(prevSessions => [newSession, ...prevSessions.slice(0, MAX_CHAT_SESSIONS -1)]);
     setActiveSessionId(newSessionId);
     
-    // Reset map visibility for this new session context
     setIsDoctorMapSectionVisible(false);
     setUserLocation(null);
     setIsDefaultLocationUsed(false);
@@ -344,10 +339,10 @@ export function AppLayoutClient() {
     setCurrentImageDataUri(processedImageDataUri);
 
     setVisualFollowUpResult(null);
-    setChatMessages([]); // Reset chat for re-analysis
+    setChatMessages([]); 
 
     const newAIResponse = await _processChatData(data.symptoms, processedImageDataUri);
-    setAiResponse(newAIResponse); // Update main UI state
+    setAiResponse(newAIResponse); 
 
     setChatSessions(prevSessions =>
         prevSessions.map(session => {
@@ -360,7 +355,6 @@ export function AppLayoutClient() {
                     visualFollowUpResult: null, 
                     chatMessages: [], 
                     timestamp: new Date().toISOString(), 
-                    // isDoctorMapSectionVisible and sessionUserLocation are preserved
                 };
             }
             return session;
@@ -419,7 +413,6 @@ export function AppLayoutClient() {
     const location = await fetchUserLocationForSession(activeSessionId);
     if (location) {
       setIsDoctorMapSectionVisible(true); 
-      // updateActiveSessionInStorage for sessionUserLocation and isDoctorMapSectionVisible already handled
     }
   };
 
@@ -442,8 +435,8 @@ export function AppLayoutClient() {
 
   const handleVisualChoiceSelected = async (selectedCondition: string) => {
     const activeSess = chatSessions.find(s => s.id === activeSessionId);
-    if (!activeSess || !activeSess.currentSymptoms) {
-      toast({ title: 'Error', description: 'Active session or original symptoms not found for visual follow-up.', variant: 'destructive' });
+    if (!activeSess || !activeSess.currentSymptoms || !activeSess.currentSymptoms.trim()) {
+      toast({ title: 'Error', description: 'Active session or original symptoms not found/empty for visual follow-up.', variant: 'destructive' });
       return;
     }
     setIsLoadingVisualFollowUp(true);
