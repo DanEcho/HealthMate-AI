@@ -16,7 +16,7 @@ export function AppShell({ children, headerLeftAction, onNavigateHome }: AppShel
         {children}
       </main>
       <footer className="py-4 text-center text-sm text-muted-foreground border-t">
-        © {new Date().getFullYear()} HealthAssist AI. All rights reserved.
+        © {new Date().getFullYear()} HealthMate AI. All rights reserved.
       </footer>
     </div>
   );

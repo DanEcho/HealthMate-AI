@@ -53,7 +53,7 @@ export function FollowUpSection({
       <CardHeader>
         <div className="flex items-center gap-3">
           <MessageSquarePlus className="h-6 w-6 text-primary" />
-          <CardTitle className="text-2xl font-semibold">Chat with HealthAssist AI</CardTitle>
+          <CardTitle className="text-2xl font-semibold">Chat with HealthMate AI</CardTitle>
         </div>
         <CardDescription className="text-muted-foreground">
           Ask follow-up questions or provide more details. The AI will refine its insights based on our conversation.
@@ -84,7 +84,7 @@ export function FollowUpSection({
                 <div className={cn("flex items-center gap-2 mb-1", msg.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
                   {msg.role === 'user' ? <UserCircle className="h-5 w-5" /> : <Bot className="h-5 w-5" />}
                   <span className="text-xs font-semibold">
-                    {msg.role === 'user' ? 'You' : 'HealthAssist AI'}
+                    {msg.role === 'user' ? 'You' : 'HealthMate AI'}
                   </span>
                 </div>
                 <p className={cn("text-sm whitespace-pre-line", msg.role === 'user' ? 'text-right' : 'text-left')}>{msg.text}</p>
@@ -126,4 +126,3 @@ export function FollowUpSection({
     </Card>
   );
 }
-

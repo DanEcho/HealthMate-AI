@@ -46,7 +46,7 @@ export function Header({ headerLeftAction, onNavigateHome }: HeaderProps) {
         <Link href="/" className="flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2" onClick={handleHomeClick}>
           <Stethoscope className="h-7 w-7 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight text-neutral-800">
-            HealthAssist AI
+            HealthMate AI
           </h1>
         </Link>
 

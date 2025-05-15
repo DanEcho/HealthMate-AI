@@ -57,7 +57,7 @@ export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFor
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-xl">
       <CardHeader>
-        <CardTitle className="text-3xl font-bold text-center text-white">HealthAssist AI</CardTitle>
+        <CardTitle className="text-3xl font-bold text-center text-white">HealthMate AI</CardTitle>
         <CardDescription className="text-center text-lg text-muted-foreground">
           Tell us how you're feeling today. You can also upload an image of your symptom.
         </CardDescription>
@@ -89,7 +89,7 @@ export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFor
               control={form.control}
               name="image"
               render={() => (
-                <FormItem className="p-6 rounded-xl border bg-card shadow-md min-h-[150px] flex flex-col justify-center">
+                <FormItem className="min-h-[150px] flex flex-col justify-center p-6 rounded-xl border bg-card text-card-foreground shadow-md">
                   <FormLabel htmlFor="image-upload" className="text-sm font-medium text-card-foreground flex items-center gap-2 cursor-pointer">
                     <ImagePlus className="h-5 w-5 text-muted-foreground" />
                     Upload an Image (Optional)

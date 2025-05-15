@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'HealthAssist AI',
+  title: 'HealthMate AI',
   description: 'Get AI-powered health insights and find nearby medical facilities.',
   icons: [{ rel: "icon", url: "/icon.svg", type: "image/svg+xml" }],
 };
