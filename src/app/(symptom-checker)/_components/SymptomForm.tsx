@@ -47,7 +47,7 @@ export function SymptomForm({ onSubmit, isLoading }: SymptomFormProps) {
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-xl">
       <CardHeader>
-        <CardTitle className="text-3xl font-bold text-center text-primary">HealthAssist AI</CardTitle>
+        <CardTitle className="text-3xl font-bold text-center text-white">HealthAssist AI</CardTitle>
         <CardDescription className="text-center text-lg">
           Tell us how you're feeling today. You can also upload an image of your symptom.
         </CardDescription>
