@@ -42,7 +42,8 @@ const SuggestedConditionSchema = z.object({
 const SuggestPotentialConditionsOutputSchema = z.array(SuggestedConditionSchema).describe('A list of potential medical conditions, their explanations, and distinguishing symptoms.');
 
 
-export const ClarificationInputSchema = z.object({
+// Zod schema for input - NOT EXPORTED
+const ClarificationInputSchema = z.object({
   originalSymptoms: z
     .string()
     .describe('The initial symptoms reported by the user.'),
@@ -56,9 +57,10 @@ export const ClarificationInputSchema = z.object({
     .string()
     .describe("The user's follow-up question regarding their symptoms or the AI's previous assessment."),
 });
-export type ClarificationInput = z.infer<typeof ClarificationInputSchema>;
+export type ClarificationInput = z.infer<typeof ClarificationInputSchema>; // TypeScript type - EXPORTED
 
-export const ClarificationOutputSchema = z.object({
+// Zod schema for output - NOT EXPORTED
+const ClarificationOutputSchema = z.object({
   clarificationText: z
     .string()
     .describe("The AI's textual answer to the user's follow-up question, taking into account all prior context."),
@@ -69,16 +71,16 @@ export const ClarificationOutputSchema = z.object({
     .optional()
     .describe("An optional, complete, updated list of potential conditions if the user's question or new information significantly changes the AI's perspective on conditions. If no significant change, this field should be omitted."),
 });
-export type ClarificationOutput = z.infer<typeof ClarificationOutputSchema>;
+export type ClarificationOutput = z.infer<typeof ClarificationOutputSchema>; // TypeScript type - EXPORTED
 
-export async function clarifySymptoms(input: ClarificationInput): Promise<ClarificationOutput> {
+export async function clarifySymptoms(input: ClarificationInput): Promise<ClarificationOutput> { // Async function - EXPORTED
   return clarificationFlow(input);
 }
 
 const clarificationPrompt = ai.definePrompt({
   name: 'clarificationPrompt',
-  input: {schema: ClarificationInputSchema},
-  output: {schema: ClarificationOutputSchema},
+  input: {schema: ClarificationInputSchema}, // Uses local Zod schema
+  output: {schema: ClarificationOutputSchema}, // Uses local Zod schema
   prompt: `You are an AI health assistant engaging in a follow-up conversation.
 The user initially reported:
 Symptoms: "{{originalSymptoms}}"
@@ -131,8 +133,8 @@ If you update the structured assessments, you can briefly mention why in the 'cl
 const clarificationFlow = ai.defineFlow(
   {
     name: 'clarificationFlow',
-    inputSchema: ClarificationInputSchema,
-    outputSchema: ClarificationOutputSchema,
+    inputSchema: ClarificationInputSchema, // Uses local Zod schema
+    outputSchema: ClarificationOutputSchema, // Uses local Zod schema
   },
   async (input: ClarificationInput) => {
     console.log(`[clarificationFlow] Starting with input: ${JSON.stringify(input, null, 2)}`);
