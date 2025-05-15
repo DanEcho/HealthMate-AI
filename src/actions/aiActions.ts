@@ -5,6 +5,7 @@
 import { assessSymptomSeverity, type AssessSymptomSeverityOutput } from '@/ai/flows/assess-symptom-severity';
 import { suggestPotentialConditions, type SuggestPotentialConditionsOutput } from '@/ai/flows/suggest-potential-conditions';
 import { refineDiagnosis, type RefineDiagnosisInput, type RefineDiagnosisOutput } from '@/ai/flows/refineDiagnosisWithVisualFlow';
+import { suggestDoctorSpecialty, type SuggestDoctorSpecialtyOutput } from '@/ai/flows/suggest-doctor-specialty';
 
 
 export interface AIResponse {
@@ -12,7 +13,11 @@ export interface AIResponse {
   potentialConditions: SuggestPotentialConditionsOutput;
 }
 
-export async function getAIResponse(symptoms: string): Promise<AIResponse> {
+export interface FullAIResponse extends AIResponse {
+  doctorSpecialtySuggestion?: SuggestDoctorSpecialtyOutput;
+}
+
+export async function getAIResponse(symptoms: string): Promise<FullAIResponse> {
   if (!symptoms.trim()) {
     console.warn('[aiActions] getAIResponse called with empty symptoms.');
     throw new Error('Symptoms cannot be empty.');
@@ -33,8 +38,17 @@ export async function getAIResponse(symptoms: string): Promise<AIResponse> {
       console.error('[aiActions] One or more AI responses were unexpectedly empty.', { severityAssessment, potentialConditions });
       throw new Error('Received incomplete AI response from one or more services.');
     }
+    
+    let doctorSpecialtySuggestion: SuggestDoctorSpecialtyOutput | undefined = undefined;
+    try {
+      doctorSpecialtySuggestion = await suggestDoctorSpecialty({ symptoms });
+      console.log('[aiActions] Successfully received doctorSpecialtySuggestion:', JSON.stringify(doctorSpecialtySuggestion, null, 2));
+    } catch (specialtyError) {
+      console.warn(`[aiActions] Failed to get doctor specialty suggestion for symptoms: "${symptoms}". Error:`, specialtyError);
+      // Non-critical, so we don't throw the main error if this one fails. It will be undefined.
+    }
 
-    return { severityAssessment, potentialConditions };
+    return { severityAssessment, potentialConditions, doctorSpecialtySuggestion };
   } catch (error) {
     console.error(`[aiActions] Error fetching AI response for symptoms: "${symptoms}". Details:`, error);
     

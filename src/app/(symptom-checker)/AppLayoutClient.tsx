@@ -9,7 +9,7 @@ import { DoctorMapSection } from './_components/DoctorMapSection';
 import { VisualFollowUpChoices } from './_components/VisualFollowUpChoices';
 import { RefinedDiagnosisDisplay } from './_components/RefinedDiagnosisDisplay';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { getAIResponse, type AIResponse, refineDiagnosisWithVisual } from '@/actions/aiActions';
+import { getAIResponse, type FullAIResponse, refineDiagnosisWithVisual } from '@/actions/aiActions'; // Updated import
 import type { RefineDiagnosisOutput } from '@/ai/flows/refineDiagnosisWithVisualFlow';
 import { useToast } from '@/hooks/use-toast';
 import type { UserLocation } from '@/lib/geolocation';
@@ -17,7 +17,7 @@ import { getUserLocation as fetchUserLocationUtil, DEFAULT_MELBOURNE_LOCATION } 
 
 export function AppLayoutClient() {
   const [isLoadingAI, setIsLoadingAI] = useState(false);
-  const [aiResponse, setAiResponse] = useState<AIResponse | null>(null);
+  const [aiResponse, setAiResponse] = useState<FullAIResponse | null>(null); // Updated type
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [symptomsForDoctorSearch, setSymptomsForDoctorSearch] = useState<string | undefined>(undefined);
@@ -52,8 +52,8 @@ export function AppLayoutClient() {
   const handleSymptomSubmit = async (data: SymptomFormData) => {
     setIsLoadingAI(true);
     setAiResponse(null);
-    setVisualFollowUpResult(null); // Clear previous follow-up results
-    setCurrentSymptoms(data.symptoms); // Store current symptoms for follow-up
+    setVisualFollowUpResult(null); 
+    setCurrentSymptoms(data.symptoms); 
     setSymptomsForDoctorSearch(data.symptoms);
 
     try {
@@ -108,16 +108,16 @@ export function AppLayoutClient() {
       <SymptomForm onSubmit={handleSymptomSubmit} isLoading={isLoadingAI || isLoadingVisualFollowUp} />
 
       {(isLoadingAI || isLoadingVisualFollowUp) && (
-        <div className="mt-8">
+        <div className="mt-8 text-center">
           <LoadingSpinner size={48} />
           <p className="text-muted-foreground mt-2">
-            {isLoadingAI ? 'Analyzing your symptoms...' : 'Getting refined insights...'}
+            {isLoadingAI ? 'Analyzing your symptoms and finding recommendations...' : 'Getting refined insights...'}
           </p>
         </div>
       )}
 
       {aiResponse && !isLoadingAI && (
-        <div className="w-full max-w-2xl space-y-6">
+        <div className="w-full max-w-3xl space-y-6"> {/* Increased max-width for doctor list */}
           <SeverityAssessmentDisplay assessment={aiResponse.severityAssessment} />
           <PotentialConditionsDisplay conditions={aiResponse.potentialConditions} />
 
@@ -139,6 +139,7 @@ export function AppLayoutClient() {
             isLocatingDoctors={isLocating} 
             symptoms={symptomsForDoctorSearch}
             isDefaultLocationUsed={isDefaultLocationUsed}
+            aiSuggestedSpecialty={aiResponse.doctorSpecialtySuggestion} // Pass new prop
           />
         </div>
       )}

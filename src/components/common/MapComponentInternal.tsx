@@ -14,6 +14,11 @@ export interface MapMarker {
   position: UserLocation;
   title?: string;
   type?: 'hospital' | 'doctor' | 'general';
+  specialty?: string;
+  distance?: string; 
+  website?: string;
+  phone?: string;
+  description?: string;
 }
 
 export interface MapComponentProps {
@@ -26,8 +31,6 @@ export interface MapComponentProps {
 
 const DEFAULT_ZOOM = 13;
 
-// Configure Leaflet's default icon paths for vanilla Leaflet
-// This is important for Next.js/webpack environments
 if (typeof window !== 'undefined') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const LIconDefault = L.Icon.Default.prototype as any;
@@ -35,7 +38,7 @@ if (typeof window !== 'undefined') {
         delete LIconDefault._getIconUrl;
     }
     L.Icon.Default.mergeOptions({
-        iconRetinaUrl: '/leaflet/marker-icon-2x.png', // Ensure these paths are correct if using default icons
+        iconRetinaUrl: '/leaflet/marker-icon-2x.png',
         iconUrl: '/leaflet/marker-icon.png',
         shadowUrl: '/leaflet/marker-shadow.png',
     });
@@ -44,8 +47,6 @@ if (typeof window !== 'undefined') {
 const iconCache: { [key: string]: LeafletDivIconType | null } = {};
 
 function createLeafletIcon(type: MapMarker['type']): LeafletDivIconType | LeafletIconType.Default {
-  // Fallback to default icon if window is not defined (e.g. during SSR icon path resolution)
-  // or if custom icon creation fails. This requires public/leaflet assets to be set up.
   const defaultIcon = new L.Icon.Default();
   if (typeof window === 'undefined') return defaultIcon;
 
@@ -60,11 +61,11 @@ function createLeafletIcon(type: MapMarker['type']): LeafletDivIconType | Leafle
   switch (type) {
     case 'hospital':
       iconComponent = <Hospital className="h-5 w-5" />;
-      colorClass = 'text-red-600';
+      colorClass = 'text-red-600'; // Hospitals typically red
       break;
     case 'doctor':
       iconComponent = <Stethoscope className="h-5 w-5" />;
-      colorClass = 'text-blue-600';
+      colorClass = 'text-blue-600'; // Doctors typically blue
       break;
     default:
       iconComponent = <MapPin className="h-5 w-5" />;
@@ -80,8 +81,8 @@ function createLeafletIcon(type: MapMarker['type']): LeafletDivIconType | Leafle
       html: iconHtml,
       className: 'bg-transparent border-none leaflet-custom-div-icon',
       iconSize: [24, 24],
-      iconAnchor: [12, 24], // Point of the icon which will correspond to marker's location
-      popupAnchor: [0, -24], // Point from which the popup should open relative to the iconAnchor
+      iconAnchor: [12, 24],
+      popupAnchor: [0, -24],
     });
     iconCache[cacheKey] = newIcon;
     return newIcon;
@@ -102,11 +103,16 @@ export function ActualLeafletMap({
   const mapInstanceRef = useRef<LeafletMapType | null>(null);
   const markersLayerRef = useRef<LeafletLayerGroupType | null>(null);
 
-  // Effect for initializing and cleaning up the map
   useEffect(() => {
-    if (!mapContainerRef.current) return; // Div not yet rendered
-    if (mapInstanceRef.current) return; // Map already initialized
-
+    if (!mapContainerRef.current) return;
+    // Do NOT initialize if mapInstanceRef.current already exists.
+    // This check is crucial to prevent re-initialization if the component itself
+    // doesn't unmount but its parent causes a re-render with the same key.
+    if (mapInstanceRef.current) {
+      // If map exists, just update view and markers if necessary (handled by other useEffects)
+      return;
+    }
+    
     mapInstanceRef.current = L.map(mapContainerRef.current);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -116,7 +122,6 @@ export function ActualLeafletMap({
 
     markersLayerRef.current = L.layerGroup().addTo(mapInstanceRef.current);
 
-    // Set initial view from props if center is available
     if (center) {
       mapInstanceRef.current.setView([center.lat, center.lng], zoom);
     }
@@ -125,33 +130,44 @@ export function ActualLeafletMap({
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
+        // Also clear markersLayerRef when map is removed
+        if (markersLayerRef.current) {
+          markersLayerRef.current.clearLayers(); // Clear layers from the group
+          markersLayerRef.current = null; // Nullify the ref
+        }
       }
     };
-  }, []); // Empty dependency array ensures this runs once on mount and cleanup on unmount
+  }, []); // Intentionally empty: map initialization and cleanup only.
 
-  // Effect for updating map view (center/zoom) when props change
   useEffect(() => {
     if (mapInstanceRef.current && center) {
       mapInstanceRef.current.setView([center.lat, center.lng], zoom);
     }
   }, [center, zoom]);
 
-  // Effect for updating markers when markers prop changes
   useEffect(() => {
     if (mapInstanceRef.current && markersLayerRef.current) {
-      markersLayerRef.current.clearLayers(); // Clear previous markers
+      markersLayerRef.current.clearLayers();
       markers.forEach(markerData => {
         const icon = createLeafletIcon(markerData.type);
         const leafletMarker = L.marker([markerData.position.lat, markerData.position.lng], { icon });
-        if (markerData.title) {
-          leafletMarker.bindPopup(markerData.title);
+        
+        let popupContent = `<b>${markerData.title || 'Unnamed Location'}</b>`;
+        if (markerData.specialty) popupContent += `<br>Specialty: ${markerData.specialty}`;
+        if (markerData.description) popupContent += `<br>${markerData.description}`;
+        if (markerData.distance) popupContent += `<br>Distance: ${markerData.distance}`;
+        if (markerData.phone) popupContent += `<br>Phone: ${markerData.phone}`;
+        if (markerData.website && markerData.website !== '#') {
+          popupContent += `<br><a href="${markerData.website}" target="_blank" rel="noopener noreferrer" style="color:hsl(var(--primary));text-decoration:underline;">Visit Website</a>`;
         }
+        leafletMarker.bindPopup(popupContent);
+        
         leafletMarker.addTo(markersLayerRef.current!);
       });
     }
-  }, [markers]);
+  }, [markers]); // Re-run if markers array changes
 
-  if (!center && !mapInstanceRef.current) { // Show placeholder if no center and map not yet init
+  if (!center && !mapInstanceRef.current) {
     return (
       <div className={cn("flex items-center justify-center h-96 w-full bg-muted rounded-lg", className)} style={style}>
         <p className="text-muted-foreground">Map initializing or center location not available.</p>
@@ -164,7 +180,6 @@ export function ActualLeafletMap({
       ref={mapContainerRef}
       className={cn("h-96 w-full rounded-lg overflow-hidden shadow-md border", className)}
       style={style}
-      // Leaflet map will be initialized inside this div
     />
   );
 }
