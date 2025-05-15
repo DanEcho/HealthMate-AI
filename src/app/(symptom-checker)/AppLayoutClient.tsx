@@ -32,7 +32,7 @@ export interface ChatMessage {
 export interface ChatSession {
   id: string;
   timestamp: string; // ISO string
-  title?: string; 
+  title?: string;
   currentSymptoms: string;
   currentImageDataUri?: string;
   aiResponse: FullAIResponse | null;
@@ -81,7 +81,7 @@ export function AppLayoutClient() {
       console.error("Failed to load chat sessions from localStorage:", error);
       toast({ title: "Error", description: "Could not load previous chat sessions.", variant: "destructive" });
     }
-  }, [toast]); 
+  }, [toast]);
 
   useEffect(() => {
     if (chatSessions.length > 0 || localStorage.getItem(LOCAL_STORAGE_KEY) !== null) {
@@ -89,13 +89,13 @@ export function AppLayoutClient() {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(chatSessions));
       } catch (error) {
         console.error("Failed to save chat sessions to localStorage:", error);
-         toast({ title: "Storage Warning", description: "Could not save all session data. Images might be too large.", variant: "destructive" });
+         toast({ title: "Storage Warning", description: "Could not save all session data. Images might be too large for local storage.", variant: "destructive" });
       }
     }
   }, [chatSessions, toast]);
 
 
-  const updateActiveSession = useCallback((updater: (session: ChatSession) => ChatSession) => {
+  const updateActiveSessionInStorage = useCallback((updater: (session: ChatSession) => ChatSession) => {
     setChatSessions(prevSessions =>
       prevSessions.map(session =>
         session.id === activeSessionId ? updater(session) : session
@@ -113,8 +113,8 @@ export function AppLayoutClient() {
     }
     setSymptomsForDoctorSearch(keepSymptomsAndImage ? currentSymptomsInput : undefined);
     
-    setIsDoctorMapSectionVisible(false); 
-    setUserLocation(null); 
+    setIsDoctorMapSectionVisible(false);
+    setUserLocation(null);
     setIsDefaultLocationUsed(false);
 
     setIsLoadingAI(false);
@@ -125,7 +125,7 @@ export function AppLayoutClient() {
   };
   
   const getSessionTitleForDisplay = (session: Partial<ChatSession>): string => {
-    if (session.title) return session.title; 
+    if (session.title) return session.title;
     if (session.currentSymptoms && session.currentSymptoms.trim().length > 0) {
       const title = session.currentSymptoms.substring(0, 35);
       return title.length < session.currentSymptoms.length ? title + '...' : title;
@@ -135,20 +135,54 @@ export function AppLayoutClient() {
 
 
   const startNewSession = () => {
-    resetCurrentInteractionState(); 
-    setActiveSessionId(null); 
+    resetCurrentInteractionState();
+    setActiveSessionId(null);
     toast({ title: "New Chat Started", description: "Please enter your symptoms." });
   };
+
+  const fetchUserLocationForSession = async (sessionId?: string) => {
+    const targetSessionId = sessionId || activeSessionId;
+    if (!targetSessionId) return null; // No session to associate location with
+
+    setIsLocatingDoctorsMap(true); // Use this for initial location fetch for map
+    setIsDefaultLocationUsed(false);
+    let fetchedLocation: UserLocation | null = null;
+    try {
+      fetchedLocation = await fetchUserLocationUtil();
+      setUserLocation(fetchedLocation);
+      updateActiveSessionInStorage(session => ({
+        ...session,
+        sessionUserLocation: fetchedLocation,
+      }));
+    } catch (error) {
+      fetchedLocation = DEFAULT_MELBOURNE_LOCATION;
+      setUserLocation(fetchedLocation);
+      setIsDefaultLocationUsed(true);
+      updateActiveSessionInStorage(session => ({
+        ...session,
+        sessionUserLocation: fetchedLocation,
+      }));
+      toast({
+        title: 'Location Error',
+        description: `${(error as Error).message || 'Could not fetch your location.'} Showing results for Melbourne.`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLocatingDoctorsMap(false);
+    }
+    return fetchedLocation;
+  };
+
 
   const loadSession = async (sessionId: string) => {
     const sessionToLoad = chatSessions.find(s => s.id === sessionId);
     if (sessionToLoad) {
-      resetCurrentInteractionState(true); 
+      resetCurrentInteractionState(true); // Keep symptoms/image fields from form as they will be overwritten
 
       setActiveSessionId(sessionToLoad.id);
       setCurrentSymptomsInput(sessionToLoad.currentSymptoms);
-      setSymptomsForDoctorSearch(sessionToLoad.currentSymptoms); 
-      setCurrentImageDataUri(sessionToLoad.currentImageDataUri); // Restore image URI
+      setSymptomsForDoctorSearch(sessionToLoad.currentSymptoms);
+      setCurrentImageDataUri(sessionToLoad.currentImageDataUri);
       setAiResponse(sessionToLoad.aiResponse);
       setVisualFollowUpResult(sessionToLoad.visualFollowUpResult);
       setChatMessages(sessionToLoad.chatMessages.map(m => ({ ...m, timestamp: new Date(m.timestamp) })));
@@ -159,12 +193,13 @@ export function AppLayoutClient() {
       if (mapVisibleInSession) {
         if (sessionToLoad.sessionUserLocation) {
           setUserLocation(sessionToLoad.sessionUserLocation);
-          setIsDefaultLocationUsed(false); 
+          setIsDefaultLocationUsed(false); // Assume stored location is not default unless explicitly set
         } else {
-          await fetchUserLocation(true, sessionToLoad.id); 
+           // If map was visible but no location stored (older session), fetch current
+          await fetchUserLocationForSession(sessionToLoad.id);
         }
       } else {
-        setUserLocation(null); 
+        setUserLocation(null);
         setIsDefaultLocationUsed(false);
       }
       
@@ -183,7 +218,6 @@ export function AppLayoutClient() {
   };
 
   const handleSymptomSubmit = async (data: SymptomFormData) => {
-    resetCurrentInteractionState(true); 
     setIsLoadingAI(true);
     setCurrentSymptomsInput(data.symptoms); 
     setSymptomsForDoctorSearch(data.symptoms); 
@@ -207,27 +241,11 @@ export function AppLayoutClient() {
     } else {
       setCurrentImageDataUri(undefined); 
     }
+    
+    // Reset follow-up related states for a re-analysis, whether it's a new session or an update
+    setVisualFollowUpResult(null);
+    setChatMessages([]); // Chat is context-dependent on the AI response
 
-    const newSessionId = `session_${Date.now()}`;
-    const initialTimestamp = new Date().toISOString();
-    
-    // Generate unique title
-    let baseTitle = '';
-    if (data.symptoms && data.symptoms.trim().length > 0) {
-      const firstPart = data.symptoms.substring(0, 35);
-      baseTitle = firstPart.length < data.symptoms.length ? firstPart + '...' : firstPart;
-    } else {
-      baseTitle = `Chat from ${new Date(initialTimestamp).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
-    }
-    let sessionTitle = baseTitle;
-    let titleCounter = 1;
-    // Access chatSessions directly from state to avoid stale closure issues
-    const currentSessionsForTitleCheck = [...chatSessions]; 
-    while (currentSessionsForTitleCheck.some(s => s.title === sessionTitle)) {
-      sessionTitle = `${baseTitle} (${titleCounter})`;
-      titleCounter++;
-    }
-    
     let finalAiAnalysisResponse: FullAIResponse | null = null;
     try {
       finalAiAnalysisResponse = await getAIResponse(data.symptoms, processedImageDataUri);
@@ -238,75 +256,86 @@ export function AppLayoutClient() {
       setIsLoadingAI(false);
     }
 
-    const newSession: ChatSession = {
-      id: newSessionId,
-      timestamp: initialTimestamp,
-      title: sessionTitle,
-      currentSymptoms: data.symptoms,
-      currentImageDataUri: processedImageDataUri, // Ensure this is the one from this submission
-      aiResponse: finalAiAnalysisResponse, // This now holds the fetched AI response
-      visualFollowUpResult: null, 
-      chatMessages: [], 
-      isDoctorMapSectionVisible: false, 
-      sessionUserLocation: null, 
-    };
+    if (activeSessionId) {
+        // UPDATE EXISTING SESSION
+        setChatSessions(prevSessions =>
+            prevSessions.map(session => {
+                if (session.id === activeSessionId) {
+                    return {
+                        ...session,
+                        currentSymptoms: data.symptoms,
+                        currentImageDataUri: processedImageDataUri,
+                        aiResponse: finalAiAnalysisResponse,
+                        visualFollowUpResult: null, // Reset follow-up state
+                        chatMessages: [], // Reset chat messages for re-analysis
+                        timestamp: new Date().toISOString(), // Update timestamp
+                        // isDoctorMapSectionVisible and sessionUserLocation are preserved unless explicitly changed
+                    };
+                }
+                return session;
+            })
+        );
+        setAiResponse(finalAiAnalysisResponse); // Update current UI with the new AI response
+        toast({ title: "Chat Updated", description: "Current chat insights have been refreshed."});
+    } else {
+        // CREATE NEW SESSION
+        const newSessionId = `session_${Date.now()}`;
+        const initialTimestamp = new Date().toISOString();
+        
+        let baseTitle = '';
+        if (data.symptoms && data.symptoms.trim().length > 0) {
+          const firstPart = data.symptoms.substring(0, 35);
+          baseTitle = firstPart.length < data.symptoms.length ? firstPart + '...' : firstPart;
+        } else {
+          baseTitle = `Chat from ${new Date(initialTimestamp).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+        }
+        let sessionTitle = baseTitle;
+        let titleCounter = 1;
+        // Access chatSessions directly from state to avoid stale closure issues
+        const currentSessionsForTitleCheck = [...chatSessions]; 
+        while (currentSessionsForTitleCheck.some(s => s.title === sessionTitle)) {
+          sessionTitle = `${baseTitle} (${titleCounter})`;
+          titleCounter++;
+        }
+        
+        const newSession: ChatSession = {
+          id: newSessionId,
+          timestamp: initialTimestamp,
+          title: sessionTitle,
+          currentSymptoms: data.symptoms,
+          currentImageDataUri: processedImageDataUri,
+          aiResponse: finalAiAnalysisResponse,
+          visualFollowUpResult: null, 
+          chatMessages: [], 
+          isDoctorMapSectionVisible: false, 
+          sessionUserLocation: null, 
+        };
 
-    setChatSessions(prevSessions =>
-      [newSession, ...prevSessions.filter(s => s.id !== newSessionId)].slice(0, MAX_CHAT_SESSIONS) 
-    );
-    setActiveSessionId(newSessionId);
-    setAiResponse(finalAiAnalysisResponse); // Update current UI with the new AI response
-    // setCurrentImageDataUri is already set by image processing logic earlier
-    // setCurrentSymptomsInput is already set
+        setChatSessions(prevSessions =>
+          [newSession, ...prevSessions.filter(s => s.id !== newSessionId)].slice(0, MAX_CHAT_SESSIONS) 
+        );
+        setActiveSessionId(newSessionId);
+        setAiResponse(finalAiAnalysisResponse);
+        // For a new session, ensure map visibility is reset if it was open from a previous, different session.
+        setIsDoctorMapSectionVisible(false);
+        setUserLocation(null);
+        setIsDefaultLocationUsed(false);
+        toast({ title: "New Chat Started", description: "AI insights generated."});
+    }
   };
   
-  const fetchUserLocation = async (isForLoadedSessionContext = false, sessionIdForUpdate?: string) => {
-    const targetSessionId = sessionIdForUpdate || activeSessionId;
-    
-    setIsLocatingDoctorsMap(true);
-    setIsDefaultLocationUsed(false);
-    let fetchedLocation: UserLocation | null = null;
-    try {
-      fetchedLocation = await fetchUserLocationUtil();
-      setUserLocation(fetchedLocation); 
-      if (targetSessionId) {
-         updateActiveSession(session => ({
-          ...session,
-          sessionUserLocation: fetchedLocation, 
-        }));
-      }
-    } catch (error) {
-      fetchedLocation = DEFAULT_MELBOURNE_LOCATION;
-      setUserLocation(fetchedLocation); 
-      setIsDefaultLocationUsed(true);
-      if (targetSessionId) {
-        updateActiveSession(session => ({
-          ...session,
-          sessionUserLocation: fetchedLocation, 
-        }));
-      }
-      toast({
-        title: 'Location Error',
-        description: `${(error as Error).message || 'Could not fetch your location.'} Showing results for Melbourne.`,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLocatingDoctorsMap(false);
-      return fetchedLocation; 
-    }
-  };
-
   const handleLocateDoctors = async () => {
     if (!activeSessionId) {
-        toast({ title: "No Active Chat", description: "Please start a new chat or load one before finding doctors.", variant: "destructive"});
+        toast({ title: "No Active Chat", description: "Please start or load a chat before finding doctors.", variant: "destructive"});
         return;
     }
-    const location = await fetchUserLocation(false, activeSessionId); 
+    const location = await fetchUserLocationForSession(activeSessionId); 
     if (location) {
       setIsDoctorMapSectionVisible(true); 
-      updateActiveSession(session => ({ 
+      updateActiveSessionInStorage(session => ({ 
         ...session,
         isDoctorMapSectionVisible: true,
+        sessionUserLocation: location, // Ensure sessionUserLocation is updated
       }));
     }
   };
@@ -319,7 +348,7 @@ export function AppLayoutClient() {
     setIsRefreshingLocation(true);
     const currentFetchedLocation = await fetchUserLocationUtil(); 
     setUserLocation(currentFetchedLocation); 
-    updateActiveSession(session => ({ 
+    updateActiveSessionInStorage(session => ({ 
       ...session,
       sessionUserLocation: currentFetchedLocation,
     }));
@@ -328,9 +357,9 @@ export function AppLayoutClient() {
   };
 
   const handleVisualChoiceSelected = async (selectedCondition: string) => {
-    const activeSession = chatSessions.find(s => s.id === activeSessionId);
-    if (!activeSession || !activeSession.currentSymptoms) {
-      toast({ title: 'Error', description: 'Active session or original symptoms not found.', variant: 'destructive' });
+    const activeSess = chatSessions.find(s => s.id === activeSessionId);
+    if (!activeSess || !activeSess.currentSymptoms) {
+      toast({ title: 'Error', description: 'Active session or original symptoms not found for visual follow-up.', variant: 'destructive' });
       return;
     }
     setIsLoadingVisualFollowUp(true);
@@ -338,7 +367,7 @@ export function AppLayoutClient() {
     try {
       const result = await refineDiagnosisWithVisual({
         selectedCondition,
-        originalSymptoms: activeSession.currentSymptoms,
+        originalSymptoms: activeSess.currentSymptoms,
       });
       setVisualFollowUpResult(result); 
 
@@ -349,7 +378,7 @@ export function AppLayoutClient() {
         timestamp: new Date()
       };
       setChatMessages(prev => [...prev, aiMessageForChat]); 
-      updateActiveSession(session => ({ 
+      updateActiveSessionInStorage(session => ({ 
         ...session,
         visualFollowUpResult: result,
         chatMessages: [...(session.chatMessages || []), aiMessageForChat],
@@ -362,8 +391,8 @@ export function AppLayoutClient() {
   };
 
   const handleSendChatMessage = async (userMessageText: string) => {
-    const activeSession = chatSessions.find(s => s.id === activeSessionId);
-    if (!activeSession || !activeSession.aiResponse || !activeSession.currentSymptoms) {
+    const activeSess = chatSessions.find(s => s.id === activeSessionId); // Use a local variable
+    if (!activeSess || !activeSess.aiResponse || !activeSess.currentSymptoms) {
       toast({ title: 'Error', description: 'Initial AI analysis or session context is not available for follow-up.', variant: 'destructive' });
       return;
     }
@@ -376,36 +405,36 @@ export function AppLayoutClient() {
     setChatMessages(prev => [...prev, newUserMessage]); 
     setIsLoadingChatResponse(true);
 
-    updateActiveSession(session => ({
+    updateActiveSessionInStorage(session => ({
       ...session,
       chatMessages: [...(session.chatMessages || []), newUserMessage],
     }));
 
     try {
       const clarificationResult: ClarificationOutput = await getAIFollowUpResponse({
-        originalSymptoms: activeSession.currentSymptoms,
-        imageDataUri: activeSession.currentImageDataUri,
-        currentSeverityAssessment: activeSession.aiResponse.severityAssessment,
-        currentPotentialConditions: activeSession.aiResponse.potentialConditions,
+        originalSymptoms: activeSess.currentSymptoms,
+        imageDataUri: activeSess.currentImageDataUri,
+        currentSeverityAssessment: activeSess.aiResponse.severityAssessment,
+        currentPotentialConditions: activeSess.aiResponse.potentialConditions,
         userQuestion: userMessageText,
       });
 
       const aiChatMessage: ChatMessage = { id: Date.now().toString() + 'ai', role: 'ai', text: clarificationResult.clarificationText, timestamp: new Date() };
       setChatMessages(prev => [...prev, aiChatMessage]); 
 
-      let updatedAiResponseForSession = activeSession.aiResponse;
+      let updatedAiResponseForSession = activeSess.aiResponse;
       if (clarificationResult.updatedSeverityAssessment || clarificationResult.updatedPotentialConditions) {
         updatedAiResponseForSession = {
-          ...(activeSession.aiResponse!), 
-          severityAssessment: clarificationResult.updatedSeverityAssessment || activeSession.aiResponse!.severityAssessment,
-          potentialConditions: clarificationResult.updatedPotentialConditions || activeSession.aiResponse!.potentialConditions,
-          doctorSpecialtySuggestion: activeSession.aiResponse!.doctorSpecialtySuggestion 
+          ...(activeSess.aiResponse!), 
+          severityAssessment: clarificationResult.updatedSeverityAssessment || activeSess.aiResponse!.severityAssessment,
+          potentialConditions: clarificationResult.updatedPotentialConditions || activeSess.aiResponse!.potentialConditions,
+          doctorSpecialtySuggestion: activeSess.aiResponse!.doctorSpecialtySuggestion 
         };
         setAiResponse(updatedAiResponseForSession); 
         toast({ title: "AI Insights Updated", description: "The AI has updated its assessment based on your chat." });
       }
 
-      updateActiveSession(session => ({
+      updateActiveSessionInStorage(session => ({
         ...session,
         aiResponse: updatedAiResponseForSession, 
         chatMessages: [...(session.chatMessages || []), aiChatMessage], 
@@ -417,7 +446,7 @@ export function AppLayoutClient() {
       const errorAiMessage: ChatMessage = { id: Date.now().toString() + 'aiError', role: 'ai', text: `Sorry, I encountered an error: ${errorMessage}`, timestamp: new Date() };
       setChatMessages(prev => [...prev, errorAiMessage]); 
       
-      updateActiveSession(session => ({
+      updateActiveSessionInStorage(session => ({
         ...session,
         chatMessages: [...(session.chatMessages || []), errorAiMessage],
       }));
@@ -455,6 +484,7 @@ export function AppLayoutClient() {
           onDeleteSession={deleteSession}
         />
 
+        {/* Pass currentSymptomsInput to prefill the form */}
         <SymptomForm onSubmit={handleSymptomSubmit} isLoading={isLoadingAI} currentSymptoms={currentSymptomsInput} />
 
         {(isLoadingAI && !aiResponse) && ( 
@@ -464,6 +494,7 @@ export function AppLayoutClient() {
           </div>
         )}
 
+        {/* Display image if available for the current active session context */}
         {currentImageDataUri && !isLoadingAI && (
           <div className="w-full max-w-md mx-auto my-4 p-2 border rounded-lg shadow-md bg-card">
             <h3 className="text-sm font-medium text-card-foreground mb-2 text-center">Symptom Image Provided:</h3>
@@ -477,6 +508,7 @@ export function AppLayoutClient() {
           </div>
         )}
 
+        {/* Display AI response if available for the current active session context */}
         {aiResponse && !isLoadingAI && (
           <div className="w-full max-w-3xl space-y-6">
             <SeverityAssessmentDisplay assessment={aiResponse.severityAssessment} />
@@ -523,6 +555,7 @@ export function AppLayoutClient() {
             />
           </div>
         )}
+        {/* Welcome message when no session is active or loading */}
         {!activeSessionId && !isLoadingAI && !aiResponse && (
           <div className="mt-12 text-center text-muted-foreground">
             <p className="text-lg">Welcome to HealthAssist AI!</p>
