@@ -3,24 +3,19 @@
 
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
-import {
-  onAuthStateChanged,
-  signOut,
-  // GoogleAuthProvider, // Removed
-  // signInWithPopup, // Removed
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  type User as FirebaseUser,
-  type AuthError
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation'; // Changed from 'next/navigation'
+import { useRouter } from 'next/navigation';
+
+// Mock User Type for prototype
+interface MockUser {
+  uid: string;
+  email: string | null;
+  displayName?: string | null;
+}
 
 interface AuthContextType {
-  user: FirebaseUser | null;
+  user: MockUser | null;
   loading: boolean;
-  // signInWithGoogle: () => Promise<void>; // Removed
   registerWithEmailPassword: (email: string, pass: string) => Promise<void>;
   loginWithEmailPassword: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -29,95 +24,70 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<MockUser | null>(null);
+  const [loading, setLoading] = useState(false); // No real async auth, so loading is minimal
   const { toast } = useToast();
   const router = useRouter();
 
+  // Simulate checking auth state on load (e.g., from localStorage if you want persistence)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    const storedUser = localStorage.getItem('healthAssistMockUser');
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        localStorage.removeItem('healthAssistMockUser');
+      }
+    }
+    setLoading(false);
   }, []);
 
-  const handleAuthError = (error: AuthError, context: string) => {
-    console.error(`Error during ${context}:`, error);
-    let message = error.message || `Failed to ${context.toLowerCase()}. Please try again.`;
-    // More specific error messages
-    if (error.code === 'auth/email-already-in-use') {
-      message = 'This email address is already in use. Please try logging in or use a different email.';
-    } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-      message = 'Invalid email or password. Please check your credentials and try again.';
-    } else if (error.code === 'auth/weak-password') {
-      message = 'The password is too weak. Please choose a stronger password (at least 6 characters).';
+  const simulateAuthAction = async (email: string, actionType: 'Login' | 'Registration') => {
+    setLoading(true);
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const mockUserData: MockUser = {
+      uid: `mock-${Date.now()}`,
+      email: email,
+      displayName: email.split('@')[0],
+    };
+    setUser(mockUserData);
+    try {
+      localStorage.setItem('healthAssistMockUser', JSON.stringify(mockUserData));
+    } catch (e) {
+      // LocalStorage might be full or disabled
+      console.warn("Could not save mock user to localStorage", e);
     }
-    toast({
-      title: `${context} Failed`,
-      description: message,
-      variant: 'destructive',
-    });
+    
+
+    toast({ title: `${actionType} Successful`, description: actionType === 'Login' ? 'Welcome back!' : 'Welcome! You are now logged in.' });
+    router.push('/');
+    setLoading(false);
   };
 
-  // const signInWithGoogle = async () => { // Removed
-  //   setLoading(true);
-  //   try {
-  //     const provider = new GoogleAuthProvider();
-  //     await signInWithPopup(auth, provider);
-  //     toast({ title: 'Signed In Successfully', description: 'Welcome!' });
-  //     router.push('/'); // Redirect to home after successful sign-in
-  //   } catch (error) {
-  //     handleAuthError(error as AuthError, 'Google Sign-In');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
-  const registerWithEmailPassword = async (email: string, pass: string) => {
-    setLoading(true);
-    try {
-      await createUserWithEmailAndPassword(auth, email, pass);
-      toast({ title: 'Registered Successfully', description: 'Welcome! You are now logged in.' });
-      router.push('/'); // Redirect to home after successful registration
-    } catch (error) {
-      handleAuthError(error as AuthError, 'Registration');
-      throw error; // Re-throw to allow form to handle its loading state
-    } finally {
-      setLoading(false);
-    }
+  const registerWithEmailPassword = async (email: string, _pass: string) => {
+    // Password isn't actually used for mock auth
+    await simulateAuthAction(email, 'Registration');
   };
   
-  const loginWithEmailPassword = async (email: string, pass: string) => {
-    setLoading(true);
-    try {
-      await signInWithEmailAndPassword(auth, email, pass);
-      toast({ title: 'Logged In Successfully', description: 'Welcome back!' });
-      router.push('/'); // Redirect to home after successful login
-    } catch (error) {
-      handleAuthError(error as AuthError, 'Login');
-      throw error; // Re-throw to allow form to handle its loading state
-    } finally {
-      setLoading(false);
-    }
+  const loginWithEmailPassword = async (email: string, _pass: string) => {
+    // Password isn't actually used for mock auth
+    await simulateAuthAction(email, 'Login');
   };
 
   const logout = async () => {
     setLoading(true);
-    try {
-      await signOut(auth);
-      setUser(null);
-      toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
-      router.push('/login'); // Redirect to login after logout
-    } catch (error) {
-      handleAuthError(error as AuthError, 'Logout');
-    } finally {
-      setLoading(false);
-    }
+    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
+    setUser(null);
+    localStorage.removeItem('healthAssistMockUser');
+    toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
+    router.push('/login');
+    setLoading(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, /*signInWithGoogle,*/ registerWithEmailPassword, loginWithEmailPassword, logout }}>
+    <AuthContext.Provider value={{ user, loading, registerWithEmailPassword, loginWithEmailPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );

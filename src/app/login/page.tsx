@@ -17,14 +17,14 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
-  password: z.string().min(1, { message: 'Password cannot be empty.' }),
+  password: z.string().min(1, { message: 'Password cannot be empty.' }), // Kept for UI, not used by mock auth
 });
 
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // const [isLoading, setIsLoading] = useState(false); // isLoading now comes from authContext
+  const [formError, setFormError] = useState<string | null>(null); // Kept for potential local form errors
   const { loginWithEmailPassword, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -37,20 +37,22 @@ export default function LoginPage() {
   });
 
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
-    setIsLoading(true);
+    // setIsLoading(true); // Handled by authLoading
     setFormError(null);
     try {
       await loginWithEmailPassword(data.email, data.password);
-      // router.push('/'); // Redirect handled by AuthContext
+      // router.push('/'); // Redirect handled by AuthContext in this mock version
     } catch (error) {
-      // Error already handled by AuthContext toast, but we can set local form error if needed
-      // setFormError("Failed to login. Please check your credentials.");
-      setIsLoading(false); // Keep loading false if error
+      // For a real API, you might setFormError here based on error.message
+      // For mock, AuthContext handles success/toast. Errors are less likely with mock.
+      console.error("Mock login error (should be rare):", error);
+      setFormError("An unexpected error occurred during mock login.");
+      // setIsLoading(false); // Handled by authLoading
     }
-    // setIsLoading(false); // setLoading(false) is handled in AuthContext
+    // setIsLoading(false); // Handled by authLoading
   };
 
-  const currentLoadingState = isLoading || authLoading;
+  // const currentLoadingState = isLoading || authLoading; // Simplified to just authLoading
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] py-12">
@@ -58,7 +60,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold text-foreground">Welcome Back!</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Sign in to access your HealthAssist AI insights.
+            Sign in to access your HealthAssist AI insights. (Prototype Login)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -79,7 +81,7 @@ export default function LoginPage() {
                     <FormControl>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input type="email" placeholder="you@example.com" {...field} className="pl-10" disabled={currentLoadingState} />
+                        <Input type="email" placeholder="you@example.com" {...field} className="pl-10" disabled={authLoading} />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -95,15 +97,15 @@ export default function LoginPage() {
                     <FormControl>
                       <div className="relative">
                         <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input type="password" placeholder="••••••••" {...field} className="pl-10" disabled={currentLoadingState} />
+                        <Input type="password" placeholder="••••••••" {...field} className="pl-10" disabled={authLoading} />
                       </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={currentLoadingState}>
-                {currentLoadingState && !authLoading ? <LoadingSpinner size={20} className="mr-2" /> : <LogIn className="mr-2 h-5 w-5" />}
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={authLoading}>
+                {authLoading ? <LoadingSpinner size={20} className="mr-2" /> : <LogIn className="mr-2 h-5 w-5" />}
                 Sign In
               </Button>
             </form>
