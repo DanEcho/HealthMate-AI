@@ -4,96 +4,98 @@
 
 @layer base {
   :root {
-    /* Light Theme */
-    --background: 200 17% 94%; /* Soft grey #ecf0f1 */
-    --foreground: 210 10% 23%; /* Dark grey for text */
+    /* Light Theme - Green & White */
+    --background: 0 0% 100%; /* White */
+    --foreground: 120 25% 25%; /* Dark Green for text */
 
     --card: 0 0% 100%; /* White */
-    --card-foreground: 210 10% 23%;
+    --card-foreground: 120 25% 25%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 10% 23%;
+    --popover-foreground: 120 25% 25%;
 
-    --primary: 207 68% 53%; /* Calming blue #3498db */
+    --primary: 145 63% 42%; /* Pleasant Green */
     --primary-foreground: 0 0% 100%; /* White */
 
-    --secondary: 200 17% 90%; /* Slightly darker grey */
-    --secondary-foreground: 210 10% 23%;
+    --secondary: 120 10% 95%; /* Very Light Greenish Grey */
+    --secondary-foreground: 120 25% 25%;
 
-    --muted: 200 17% 85%; /* Muted grey */
-    --muted-foreground: 210 10% 45%;
+    --muted: 120 10% 90%; /* Light Greenish Grey */
+    --muted-foreground: 120 15% 45%;
 
-    --accent: 145 63% 49%; /* Green #2ecc71 */
+    --accent: 130 50% 55%; /* Lighter, vibrant Green */
     --accent-foreground: 0 0% 100%; /* White */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 200 17% 80%;
-    --input: 200 17% 88%;
-    --ring: 207 68% 53%; /* Blue for ring */
+    --border: 120 10% 88%; /* Light grey-green border */
+    --input: 120 20% 96%; /* Very light grey-green input background */
+    --ring: 145 63% 42%; /* Primary green for ring */
 
-    --radius: 0.5rem;
+    --radius: 0.5rem; /* Default ShadCN radius, can be overridden for "bubbly" */
 
-    --chart-1: 207 68% 53%;
-    --chart-2: 145 63% 49%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --chart-1: 145 63% 42%;
+    --chart-2: 130 50% 55%;
+    --chart-3: 150 40% 30%;
+    --chart-4: 120 30% 60%;
+    --chart-5: 160 50% 50%;
 
-    --sidebar-background: 200 17% 96%;
-    --sidebar-foreground: 210 10% 23%;
-    --sidebar-primary: 207 68% 53%;
+    /* Sidebar colors adjusted to match green/white theme */
+    --sidebar-background: 120 10% 97%; /* Off-white with a hint of green */
+    --sidebar-foreground: 120 25% 25%;
+    --sidebar-primary: 145 63% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 145 63% 49%;
+    --sidebar-accent: 130 50% 55%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 200 17% 80%;
-    --sidebar-ring: 207 68% 53%;
+    --sidebar-border: 120 10% 88%;
+    --sidebar-ring: 145 63% 42%;
   }
 
   .dark {
+    /* Dark Theme - Keeping it darker, but primary/accent can still be green */
     --background: 210 10% 15%; /* Dark blue/grey */
-    --foreground: 200 17% 94%; /* Light grey text */
+    --foreground: 120 10% 85%; /* Light grey-green text */
 
     --card: 210 10% 20%;
-    --card-foreground: 200 17% 94%;
+    --card-foreground: 120 10% 85%;
 
     --popover: 210 10% 20%;
-    --popover-foreground: 200 17% 94%;
+    --popover-foreground: 120 10% 85%;
 
-    --primary: 207 68% 53%; /* Calming blue */
+    --primary: 145 63% 49%; /* Green for dark mode */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 10% 25%;
-    --secondary-foreground: 200 17% 94%;
+    --secondary-foreground: 120 10% 85%;
 
     --muted: 210 10% 30%;
-    --muted-foreground: 200 17% 70%;
+    --muted-foreground: 120 10% 65%;
 
-    --accent: 145 63% 49%; /* Green */
-    --accent-foreground: 0 0% 100%;
+    --accent: 130 50% 60%; /* Lighter Green for dark mode accent */
+    --accent-foreground: 0 0% 0%; /* Dark text on light green accent */
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 210 10% 35%;
     --input: 210 10% 30%;
-    --ring: 207 68% 53%; /* Blue for ring */
+    --ring: 145 63% 49%; /* Green for ring in dark mode */
     
-    --chart-1: 207 68% 53%;
-    --chart-2: 145 63% 49%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --chart-1: 145 63% 49%;
+    --chart-2: 130 50% 60%;
+    --chart-3: 150 40% 40%;
+    --chart-4: 120 30% 70%;
+    --chart-5: 160 50% 60%;
 
     --sidebar-background: 210 10% 12%;
-    --sidebar-foreground: 200 17% 94%;
-    --sidebar-primary: 207 68% 53%;
+    --sidebar-foreground: 120 10% 85%;
+    --sidebar-primary: 145 63% 49%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 145 63% 49%;
-    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-accent: 130 50% 60%;
+    --sidebar-accent-foreground: 0 0% 0%;
     --sidebar-border: 210 10% 25%;
-    --sidebar-ring: 207 68% 53%;
+    --sidebar-ring: 145 63% 49%;
   }
 }
 

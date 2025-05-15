@@ -66,8 +66,8 @@ export function FollowUpSection({
               <div
                 key={msg.id}
                 className={cn(
-                  'flex flex-col p-3 rounded-lg shadow-sm max-w-[85%] break-words',
-                  msg.role === 'user' ? 'bg-primary/80 text-primary-foreground self-end items-end ml-auto rounded-br-none' : 'bg-accent/70 text-accent-foreground self-start items-start mr-auto rounded-bl-none'
+                  'flex flex-col p-3 shadow-sm max-w-[85%] break-words rounded-2xl', // Increased rounding
+                  msg.role === 'user' ? 'bg-primary/90 text-primary-foreground self-end items-end ml-auto rounded-br-sm' : 'bg-accent/80 text-accent-foreground self-start items-start mr-auto rounded-bl-sm' // Adjusted corner rounding for tail
                 )}
               >
                 <div className={cn("flex items-center gap-2 mb-1", msg.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
@@ -77,7 +77,7 @@ export function FollowUpSection({
                   </span>
                 </div>
                 <p className={cn("text-sm whitespace-pre-line", msg.role === 'user' ? 'text-right' : 'text-left')}>{msg.text}</p>
-                <p className="text-xs text-muted-foreground/80 mt-1 self-start opacity-70">
+                <p className={cn("text-xs mt-1 self-start opacity-70", msg.role === 'user' ? 'text-primary-foreground/80' : 'text-accent-foreground/80')} >
                   {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
@@ -97,9 +97,9 @@ export function FollowUpSection({
             placeholder="Type your message here..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            className="flex-grow min-h-[40px] resize-none"
+            className="flex-grow min-h-[40px] resize-none rounded-xl" // More rounding for textarea
             rows={1}
-            disabled={isLoading} // Also disable if initial AI response is not yet available
+            disabled={isLoading} 
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -107,7 +107,7 @@ export function FollowUpSection({
               }
             }}
           />
-          <Button type="submit" disabled={isLoading || !newMessage.trim()} size="icon" aria-label="Send message">
+          <Button type="submit" disabled={isLoading || !newMessage.trim()} size="icon" aria-label="Send message" className="rounded-full"> {/* Round button */}
             {isLoading ? <LoadingSpinner size={20} /> : <Send className="h-5 w-5" />}
           </Button>
         </form>
@@ -115,3 +115,4 @@ export function FollowUpSection({
     </Card>
   );
 }
+
