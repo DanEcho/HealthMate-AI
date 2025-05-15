@@ -78,7 +78,7 @@ export function AppLayoutClient() {
         imageDataUriSubmission = undefined;
       }
     }
-    setCurrentImageDateUri(imageDataUriSubmission); // Store for potential follow-up
+    setCurrentImageDataUri(imageDataUriSubmission); // Corrected: Was setCurrentImageDateUri
 
     try {
       const response = await getAIResponse(data.symptoms, imageDataUriSubmission);
