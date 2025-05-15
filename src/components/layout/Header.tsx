@@ -4,7 +4,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { MapIcon, Stethoscope, HomeIcon, LogIn, LogOut, UserPlus, PanelLeft } from 'lucide-react';
+import { MapIcon, Stethoscope, HomeIcon, LogIn, LogOut, UserPlus } from 'lucide-react'; // PanelLeft removed, it's passed via prop
 import { useAuth } from '@/context/AuthContext';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
@@ -45,7 +45,7 @@ export function Header({ headerLeftAction }: HeaderProps) {
 
         <div className="flex items-center gap-2">
           {loading ? (
-            <LoadingSpinner size={20} />
+            <LoadingSpinner size={20} className="text-neutral-500"/>
           ) : user ? (
             <>
               {user.email && <span className="text-sm text-neutral-500 hidden md:inline">Hi, {user.email.split('@')[0]}</span>}
@@ -63,7 +63,7 @@ export function Header({ headerLeftAction }: HeaderProps) {
                 </Button>
               </Link>
               <Link href="/signup" passHref>
-                <Button variant="default" size="sm" className="flex items-center gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
+                <Button size="sm" className="flex items-center gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
                   <UserPlus className="h-4 w-4" />
                   <span>Sign Up</span>
                 </Button>

@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Search, ImagePlus } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const formSchema = z.object({
   symptoms: z.string().min(10, { message: 'Please describe your symptoms in at least 10 characters.' }),
@@ -22,21 +22,31 @@ export type SymptomFormData = z.infer<typeof formSchema>;
 interface SymptomFormProps {
   onSubmit: SubmitHandler<SymptomFormData>;
   isLoading: boolean;
+  currentSymptoms?: string; // Added to allow pre-filling
 }
 
-export function SymptomForm({ onSubmit, isLoading }: SymptomFormProps) {
+export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFormProps) {
   const [fileName, setFileName] = useState<string | null>(null);
   const form = useForm<SymptomFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      symptoms: '',
+      symptoms: currentSymptoms || '',
+      image: undefined,
     },
   });
+
+  // Effect to update form if currentSymptoms prop changes (e.g., when loading a session)
+  useEffect(() => {
+    form.reset({ symptoms: currentSymptoms || '', image: undefined });
+    if (!currentSymptoms) { // If symptoms are cleared (new session), also clear filename
+        setFileName(null);
+    }
+  }, [currentSymptoms, form]);
+
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       setFileName(event.target.files[0].name);
-      // react-hook-form's setValue is used to correctly update the form state for the file input
       form.setValue('image', event.target.files);
     } else {
       setFileName(null);
@@ -48,7 +58,7 @@ export function SymptomForm({ onSubmit, isLoading }: SymptomFormProps) {
     <Card className="w-full max-w-2xl mx-auto shadow-xl">
       <CardHeader>
         <CardTitle className="text-3xl font-bold text-center text-white">HealthAssist AI</CardTitle>
-        <CardDescription className="text-center text-lg">
+        <CardDescription className="text-center text-lg text-muted-foreground">
           Tell us how you're feeling today. You can also upload an image of your symptom.
         </CardDescription>
       </CardHeader>
@@ -78,7 +88,7 @@ export function SymptomForm({ onSubmit, isLoading }: SymptomFormProps) {
             <FormField
               control={form.control}
               name="image"
-              render={() => ( // field is not directly used here as onChange is custom
+              render={() => ( 
                 <FormItem>
                   <FormLabel htmlFor="image-upload" className="text-sm font-medium text-foreground flex items-center gap-2">
                     <ImagePlus className="h-5 w-5 text-muted-foreground" />
@@ -89,7 +99,7 @@ export function SymptomForm({ onSubmit, isLoading }: SymptomFormProps) {
                         id="image-upload"
                         type="file"
                         accept="image/*"
-                        onChange={handleFileChange}
+                        onChange={handleFileChange} // field.onChange is not directly suitable for FileList from input type="file"
                         className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                       />
                   </FormControl>
