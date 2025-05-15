@@ -16,12 +16,14 @@ interface FollowUpSectionProps {
   chatMessages: ChatMessage[];
   onSendMessage: (messageText: string) => Promise<void>;
   isLoading: boolean;
+  isContextAvailable: boolean; // New prop
 }
 
 export function FollowUpSection({
   chatMessages,
   onSendMessage,
   isLoading,
+  isContextAvailable, // Use this prop
 }: FollowUpSectionProps) {
   const [newMessage, setNewMessage] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -36,10 +38,15 @@ export function FollowUpSection({
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !isContextAvailable) return; // Also check context here as a safeguard
     await onSendMessage(newMessage);
     setNewMessage(''); 
   };
+
+  const isDisabled = isLoading || !isContextAvailable;
+  const placeholderText = !isContextAvailable 
+    ? "Please get initial insights above before chatting." 
+    : "Type your message here...";
 
   return (
     <Card className="mt-6 shadow-lg w-full">
@@ -59,15 +66,19 @@ export function FollowUpSection({
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground pt-16">
                 <Bot className="h-12 w-12 mb-2 opacity-50" />
                 <p>No messages yet.</p>
-                <p className="text-xs">(Chat will appear here after initial analysis and your questions)</p>
+                <p className="text-xs">
+                  {isContextAvailable 
+                    ? "(Ask a follow-up question below)" 
+                    : "(Complete the symptom form above to start chatting)"}
+                </p>
               </div>
             )}
             {chatMessages.map((msg) => (
               <div
                 key={msg.id}
                 className={cn(
-                  'flex flex-col p-3 shadow-sm max-w-[85%] break-words rounded-2xl', // Increased rounding
-                  msg.role === 'user' ? 'bg-primary/90 text-primary-foreground self-end items-end ml-auto rounded-br-sm' : 'bg-accent/80 text-accent-foreground self-start items-start mr-auto rounded-bl-sm' // Adjusted corner rounding for tail
+                  'flex flex-col p-3 shadow-sm max-w-[85%] break-words rounded-2xl', 
+                  msg.role === 'user' ? 'bg-primary/90 text-primary-foreground self-end items-end ml-auto rounded-br-sm' : 'bg-accent/80 text-accent-foreground self-start items-start mr-auto rounded-bl-sm' 
                 )}
               >
                 <div className={cn("flex items-center gap-2 mb-1", msg.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
@@ -82,7 +93,7 @@ export function FollowUpSection({
                 </p>
               </div>
             ))}
-            {isLoading && chatMessages.length > 0 && ( // Show typing indicator only if there are messages
+            {isLoading && chatMessages.length > 0 && ( 
                <div className="flex items-center justify-start gap-2 p-2 self-start mr-auto mt-2">
                   <Bot className="h-5 w-5 text-muted-foreground animate-pulse" />
                   <LoadingSpinner size={16} className="text-muted-foreground"/>
@@ -94,12 +105,12 @@ export function FollowUpSection({
 
         <form onSubmit={handleFormSubmit} className="flex items-center gap-2">
           <Textarea
-            placeholder="Type your message here..."
+            placeholder={placeholderText}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            className="flex-grow min-h-[40px] resize-none rounded-xl" // More rounding for textarea
+            className="flex-grow min-h-[40px] resize-none rounded-xl" 
             rows={1}
-            disabled={isLoading} 
+            disabled={isDisabled} 
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -107,7 +118,7 @@ export function FollowUpSection({
               }
             }}
           />
-          <Button type="submit" disabled={isLoading || !newMessage.trim()} size="icon" aria-label="Send message" className="rounded-full"> {/* Round button */}
+          <Button type="submit" disabled={isDisabled || !newMessage.trim()} size="icon" aria-label="Send message" className="rounded-full"> 
             {isLoading ? <LoadingSpinner size={20} /> : <Send className="h-5 w-5" />}
           </Button>
         </form>
