@@ -81,20 +81,25 @@ export function AppLayoutClient() {
       if (storedSessions) {
         const parsedSessions: ChatSession[] = JSON.parse(storedSessions);
         setChatSessions(parsedSessions);
+        if (parsedSessions.length > 0 && !activeSessionId) {
+          // Optionally auto-load the most recent session, or leave it to manual load
+          // For now, let's not auto-load to keep it simple. User can pick from history.
+        }
       }
     } catch (error) {
       console.error("Failed to load chat sessions from localStorage:", error);
       toast({ title: "Error", description: "Could not load previous chat sessions.", variant: "destructive" });
     }
-  }, [toast]);
+  }, [toast, activeSessionId]); // Added activeSessionId to dependencies though it's not directly used here, for completeness
 
   useEffect(() => {
+    // This effect runs only if chatSessions has items or if the key existed and is now empty (e.g., last session deleted)
     if (chatSessions.length > 0 || localStorage.getItem(LOCAL_STORAGE_KEY) !== null) {
       try {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(chatSessions));
       } catch (error) {
         console.error("Failed to save chat sessions to localStorage:", error);
-         toast({ title: "Storage Warning", description: "Could not save all session data. Images might be too large for local storage.", variant: "destructive" });
+         toast({ title: "Storage Warning", description: "Could not save all session data. Images might be too large, or storage is full.", variant: "destructive" });
       }
     }
   }, [chatSessions, toast]);
@@ -119,14 +124,12 @@ export function AppLayoutClient() {
     setSymptomsForDoctorSearch(keepSymptomsAndImage ? currentSymptomsInput : undefined);
     
     setIsDoctorMapSectionVisible(false);
-    // setUserLocation(null); // Keep location if we are just resetting AI parts
-    // setIsDefaultLocationUsed(false); // Keep location status
+    // setUserLocation(null); // Location is preserved unless starting a totally new session
+    // setIsDefaultLocationUsed(false); // Location status is preserved
 
     setIsLoadingAI(false);
     setIsLoadingVisualFollowUp(false);
     setIsLoadingChatResponse(false);
-    // setIsLocatingDoctorsMap(false); // Should be independent
-    // setIsRefreshingLocation(false); // Should be independent
   };
   
   const getSessionTitleForDisplay = (session: Partial<ChatSession>): string => {
@@ -139,18 +142,17 @@ export function AppLayoutClient() {
   };
 
   const startNewSession = () => {
-    resetCurrentInteractionState(); // Clears symptoms, AI response, etc.
-    setActiveSessionId(null); // Crucial for identifying a new session context
-    // Also reset map related states tied to a specific session interaction
+    resetCurrentInteractionState(); 
+    setActiveSessionId(null); 
+    // Reset map related states for a truly new session
     setUserLocation(null);
     setIsDefaultLocationUsed(false);
     setIsDoctorMapSectionVisible(false);
     toast({ title: "New Chat Started", description: "Please enter your symptoms." });
   };
 
-  const fetchUserLocationForSession = async (sessionIdToUpdate?: string) => {
+  const fetchUserLocationForSession = async (sessionIdToUpdate?: string): Promise<UserLocation | null> => {
     const targetSessionId = sessionIdToUpdate || activeSessionId;
-    // For new sessions without an ID yet, we don't update storage here, it happens on session creation.
     
     setIsLocatingDoctorsMap(true); 
     setIsDefaultLocationUsed(false);
@@ -162,7 +164,7 @@ export function AppLayoutClient() {
         updateActiveSessionInStorage(session => ({
           ...session,
           sessionUserLocation: fetchedLocation,
-          isDoctorMapSectionVisible: true, // Assuming map is now visible
+          isDoctorMapSectionVisible: true,
         }));
       }
     } catch (error) {
@@ -173,7 +175,7 @@ export function AppLayoutClient() {
         updateActiveSessionInStorage(session => ({
           ...session,
           sessionUserLocation: fetchedLocation,
-          isDoctorMapSectionVisible: true, // Assuming map is now visible
+          isDoctorMapSectionVisible: true,
         }));
       }
       toast({
@@ -184,7 +186,7 @@ export function AppLayoutClient() {
     } finally {
       setIsLocatingDoctorsMap(false);
     }
-    return fetchedLocation; // Return fetched location so it can be used immediately
+    return fetchedLocation;
   };
 
 
@@ -197,7 +199,7 @@ export function AppLayoutClient() {
       setCurrentImageDataUri(sessionToLoad.currentImageDataUri);
       setAiResponse(sessionToLoad.aiResponse);
       setVisualFollowUpResult(sessionToLoad.visualFollowUpResult);
-      setChatMessages(sessionToLoad.chatMessages.map(m => ({ ...m, timestamp: new Date(m.timestamp) })));
+      setChatMessages(sessionToLoad.chatMessages.map(m => ({ ...m, timestamp: new Date(m.timestamp) }))); // Ensure timestamps are Date objects
       
       const mapVisibleInSession = sessionToLoad.isDoctorMapSectionVisible || false;
       setIsDoctorMapSectionVisible(mapVisibleInSession);
@@ -205,12 +207,13 @@ export function AppLayoutClient() {
       if (mapVisibleInSession) {
         if (sessionToLoad.sessionUserLocation) {
           setUserLocation(sessionToLoad.sessionUserLocation);
-          setIsDefaultLocationUsed(false); 
+          setIsDefaultLocationUsed(sessionToLoad.sessionUserLocation.lat === DEFAULT_MELBOURNE_LOCATION.lat && sessionToLoad.sessionUserLocation.lng === DEFAULT_MELBOURNE_LOCATION.lng); 
         } else {
-          await fetchUserLocationForSession(sessionToLoad.id); // Fetch if map was visible but no location stored
+          // If map was visible but no location stored (e.g., older session), fetch current location
+          await fetchUserLocationForSession(sessionToLoad.id);
         }
       } else {
-        setUserLocation(null);
+        setUserLocation(null); // If map wasn't visible, clear current location display
         setIsDefaultLocationUsed(false);
       }
       
@@ -223,7 +226,7 @@ export function AppLayoutClient() {
   const deleteSession = (sessionId: string) => {
     setChatSessions(prevSessions => prevSessions.filter(s => s.id !== sessionId));
     if (activeSessionId === sessionId) {
-      startNewSession();
+      startNewSession(); // If active session is deleted, start a new one
     }
     toast({ title: "Chat Deleted", description: "The chat session has been removed." });
   };
@@ -243,7 +246,7 @@ export function AppLayoutClient() {
 
   const _initiateAndProcessNewChat = async (data: SymptomFormData) => {
     setCurrentSymptomsInput(data.symptoms);
-    setSymptomsForDoctorSearch(data.symptoms);
+    setSymptomsForDoctorSearch(data.symptoms); // Also set for doctor search context
 
     let processedImageDataUri: string | undefined = undefined;
     if (data.image && data.image.length > 0) {
@@ -255,22 +258,19 @@ export function AppLayoutClient() {
                 reader.onerror = (error) => reject(new Error('Failed to read image file: ' + error));
                 reader.readAsDataURL(file);
             });
-            setCurrentImageDataUri(processedImageDataUri);
         } catch (error) {
             toast({ title: 'Image Error', description: (error as Error).message || 'Could not process image.', variant: 'destructive'});
-            processedImageDataUri = undefined;
-            setCurrentImageDataUri(undefined);
+            processedImageDataUri = undefined; // Ensure it's undefined if processing fails
         }
-    } else {
-        setCurrentImageDataUri(undefined);
     }
+    setCurrentImageDataUri(processedImageDataUri);
 
     // Reset follow-ups for a new analysis
     setVisualFollowUpResult(null);
     setChatMessages([]);
 
     const newAIResponse = await _processChatData(data.symptoms, processedImageDataUri);
-    setAiResponse(newAIResponse);
+    setAiResponse(newAIResponse); // Update main AI response state for UI
 
     const newSessionId = `session_${Date.now()}`;
     const initialTimestamp = new Date().toISOString();
@@ -285,6 +285,7 @@ export function AppLayoutClient() {
     
     let sessionTitle = baseTitle;
     let titleCounter = 1;
+    // Use a fresh copy of chatSessions for title check to avoid stale state issues
     const currentSessionsForTitleCheck = [...chatSessions]; 
     while (currentSessionsForTitleCheck.some(s => s.title === sessionTitle)) {
       sessionTitle = `${baseTitle} (${titleCounter})`;
@@ -297,17 +298,17 @@ export function AppLayoutClient() {
       title: sessionTitle,
       currentSymptoms: data.symptoms,
       currentImageDataUri: processedImageDataUri,
-      aiResponse: newAIResponse,
+      aiResponse: newAIResponse, // Save the AI response with the session
       visualFollowUpResult: null, 
       chatMessages: [], 
-      isDoctorMapSectionVisible: false, 
-      sessionUserLocation: null, 
+      isDoctorMapSectionVisible: false, // Map is not visible by default for new sessions
+      sessionUserLocation: null, // No location initially
     };
 
     setChatSessions(prevSessions => [newSession, ...prevSessions.slice(0, MAX_CHAT_SESSIONS -1)]);
     setActiveSessionId(newSessionId);
     
-    // Reset map visibility for new session
+    // Reset map visibility for this new session context
     setIsDoctorMapSectionVisible(false);
     setUserLocation(null);
     setIsDefaultLocationUsed(false);
@@ -319,7 +320,7 @@ export function AppLayoutClient() {
     if (!activeSessionId) return;
 
     setCurrentSymptomsInput(data.symptoms);
-    setSymptomsForDoctorSearch(data.symptoms);
+    setSymptomsForDoctorSearch(data.symptoms); // Update for doctor search context
 
     let processedImageDataUri: string | undefined = currentImageDataUri; // Keep old if no new image
     if (data.image && data.image.length > 0) {
@@ -335,7 +336,7 @@ export function AppLayoutClient() {
             toast({ title: 'Image Error', description: (error as Error).message || 'Could not process image.', variant: 'destructive'});
             // Keep existing URI if new one fails to process
         }
-    } else if (data.image === undefined) { // Explicitly no image submitted now
+    } else if (data.image === undefined) { // Explicitly no image submitted now (e.g., user removed it)
         processedImageDataUri = undefined;
     }
     setCurrentImageDataUri(processedImageDataUri);
@@ -346,7 +347,7 @@ export function AppLayoutClient() {
     setChatMessages([]);
 
     const newAIResponse = await _processChatData(data.symptoms, processedImageDataUri);
-    setAiResponse(newAIResponse);
+    setAiResponse(newAIResponse); // Update main AI response state for UI
 
     setChatSessions(prevSessions =>
         prevSessions.map(session => {
@@ -355,11 +356,11 @@ export function AppLayoutClient() {
                     ...session,
                     currentSymptoms: data.symptoms,
                     currentImageDataUri: processedImageDataUri,
-                    aiResponse: newAIResponse,
+                    aiResponse: newAIResponse, // Update the AI response
                     visualFollowUpResult: null, // Reset follow-up state
                     chatMessages: [], // Reset chat messages for re-analysis
                     timestamp: new Date().toISOString(), // Update timestamp
-                    // isDoctorMapSectionVisible and sessionUserLocation are preserved
+                    // isDoctorMapSectionVisible and sessionUserLocation are preserved for updates
                 };
             }
             return session;
@@ -371,9 +372,11 @@ export function AppLayoutClient() {
 
   const handleSymptomSubmit = async (data: SymptomFormData) => {
     if (activeSessionId) {
+        // If a session is active, prompt the user
         setPendingSymptomData(data);
         setIsUpdateOrNewDialogVisible(true);
     } else {
+        // No active session, so initiate a new chat directly
         await _initiateAndProcessNewChat(data);
     }
   };
@@ -388,8 +391,8 @@ export function AppLayoutClient() {
 
   const handleConfirmStartNewFromDialog = async () => {
     if (pendingSymptomData) {
-        startNewSession(); // Resets activeSessionId and UI state
-        // Wait for state to clear before starting new chat processing
+        startNewSession(); // This resets activeSessionId and other UI state
+        // Ensure state updates from startNewSession propagate before initiating new chat
         await new Promise(resolve => setTimeout(resolve, 0)); 
         await _initiateAndProcessNewChat(pendingSymptomData);
     }
@@ -398,16 +401,13 @@ export function AppLayoutClient() {
   };
   
   const handleLocateDoctors = async () => {
-    // If no active session, initiating map should still work but won't be saved to a session until one is active.
-    // However, current logic ties map saving to an active session.
-    // For now, require an active session to show map related to that session's context.
     if (!activeSessionId) {
         toast({ title: "No Active Chat", description: "Please start or load a chat before finding doctors.", variant: "destructive"});
         return;
     }
-    const location = await fetchUserLocationForSession(activeSessionId); 
+    const location = await fetchUserLocationForSession(activeSessionId); // This now saves location to session too
     if (location) {
-      setIsDoctorMapSectionVisible(true); 
+      setIsDoctorMapSectionVisible(true); // Show map section
       // updateActiveSessionInStorage for sessionUserLocation and isDoctorMapSectionVisible already handled by fetchUserLocationForSession
     }
   };
@@ -419,10 +419,11 @@ export function AppLayoutClient() {
     }
     setIsRefreshingLocation(true);
     const currentFetchedLocation = await fetchUserLocationUtil(); 
-    setUserLocation(currentFetchedLocation); 
-    updateActiveSessionInStorage(session => ({ 
+    setUserLocation(currentFetchedLocation); // Update main UI location state
+    updateActiveSessionInStorage(session => ({ // Update the location for this specific session
       ...session,
-      sessionUserLocation: currentFetchedLocation, // Update the location for this session
+      sessionUserLocation: currentFetchedLocation,
+      isDoctorMapSectionVisible: true, // Ensure map stays visible
     }));
     setIsRefreshingLocation(false);
     toast({ title: "Map Refreshed", description: "Map updated to your current location." });
@@ -435,22 +436,24 @@ export function AppLayoutClient() {
       return;
     }
     setIsLoadingVisualFollowUp(true);
-    setVisualFollowUpResult(null); 
+    setVisualFollowUpResult(null); // Clear previous visual result
     try {
       const result = await refineDiagnosisWithVisual({
         selectedCondition,
         originalSymptoms: activeSess.currentSymptoms,
       });
-      setVisualFollowUpResult(result); 
+      setVisualFollowUpResult(result); // Update main UI state
 
+      // Add a system-like message to chat history for the refined diagnosis
       const aiMessageForChat: ChatMessage = {
         id: Date.now().toString() + 'refined',
         role: 'ai',
         text: `Okay, focusing on ${selectedCondition}. Here's some refined advice: ${result.refinedAdvice}${result.confidence ? ` (Confidence: ${result.confidence})` : ''}`,
         timestamp: new Date()
       };
-      setChatMessages(prev => [...prev, aiMessageForChat]); 
-      updateActiveSessionInStorage(session => ({ 
+      setChatMessages(prev => [...prev, aiMessageForChat]); // Update main UI state for chat
+      
+      updateActiveSessionInStorage(session => ({ // Save to session
         ...session,
         visualFollowUpResult: result,
         chatMessages: [...(session.chatMessages || []), aiMessageForChat],
@@ -463,7 +466,7 @@ export function AppLayoutClient() {
   };
 
   const handleSendChatMessage = async (userMessageText: string) => {
-    const activeSess = chatSessions.find(s => s.id === activeSessionId); 
+    const activeSess = chatSessions.find(s => s.id === activeSessionId); // Ensure we're working with current session from array
     if (!activeSess || !activeSess.aiResponse || !activeSess.currentSymptoms) {
       toast({ title: 'Error', description: 'Initial AI analysis or session context is not available for follow-up.', variant: 'destructive' });
       return;
@@ -474,9 +477,10 @@ export function AppLayoutClient() {
     }
 
     const newUserMessage: ChatMessage = { id: Date.now().toString(), role: 'user', text: userMessageText, timestamp: new Date() };
-    setChatMessages(prev => [...prev, newUserMessage]); 
+    setChatMessages(prev => [...prev, newUserMessage]); // Update main UI state
     setIsLoadingChatResponse(true);
 
+    // Save user message to active session immediately
     updateActiveSessionInStorage(session => ({
       ...session,
       chatMessages: [...(session.chatMessages || []), newUserMessage],
@@ -486,38 +490,41 @@ export function AppLayoutClient() {
       const clarificationResult: ClarificationOutput = await getAIFollowUpResponse({
         originalSymptoms: activeSess.currentSymptoms,
         imageDataUri: activeSess.currentImageDataUri,
-        currentSeverityAssessment: activeSess.aiResponse.severityAssessment,
-        currentPotentialConditions: activeSess.aiResponse.potentialConditions,
+        currentSeverityAssessment: activeSess.aiResponse.severityAssessment, // Pass current from session
+        currentPotentialConditions: activeSess.aiResponse.potentialConditions, // Pass current from session
         userQuestion: userMessageText,
       });
 
       const aiChatMessage: ChatMessage = { id: Date.now().toString() + 'ai', role: 'ai', text: clarificationResult.clarificationText, timestamp: new Date() };
-      setChatMessages(prev => [...prev, aiChatMessage]); 
+      setChatMessages(prev => [...prev, aiChatMessage]); // Update main UI state
 
       let updatedAiResponseForSession = activeSess.aiResponse;
       if (clarificationResult.updatedSeverityAssessment || clarificationResult.updatedPotentialConditions) {
         updatedAiResponseForSession = {
-          ...(activeSess.aiResponse!), 
+          ...(activeSess.aiResponse!), // Non-null assertion as we checked earlier
           severityAssessment: clarificationResult.updatedSeverityAssessment || activeSess.aiResponse!.severityAssessment,
           potentialConditions: clarificationResult.updatedPotentialConditions || activeSess.aiResponse!.potentialConditions,
+          // doctorSpecialtySuggestion remains from initial analysis, not updated by chat for now
           doctorSpecialtySuggestion: activeSess.aiResponse!.doctorSpecialtySuggestion 
         };
-        setAiResponse(updatedAiResponseForSession); 
+        setAiResponse(updatedAiResponseForSession); // Update main UI state for other components
         toast({ title: "AI Insights Updated", description: "The AI has updated its assessment based on your chat." });
       }
 
+      // Save AI response and any AI state updates to the active session
       updateActiveSessionInStorage(session => ({
         ...session,
-        aiResponse: updatedAiResponseForSession, 
-        chatMessages: [...(session.chatMessages || []), aiChatMessage], 
+        aiResponse: updatedAiResponseForSession, // Save potentially updated AI response
+        chatMessages: [...(session.chatMessages || []), aiChatMessage], // Ensure this appends to the already updated list
       }));
 
     } catch (error) {
       const errorMessage = (error as Error).message || 'Failed to get AI follow-up response.';
       toast({ title: 'Chat Error', description: errorMessage, variant: 'destructive' });
       const errorAiMessage: ChatMessage = { id: Date.now().toString() + 'aiError', role: 'ai', text: `Sorry, I encountered an error: ${errorMessage}`, timestamp: new Date() };
-      setChatMessages(prev => [...prev, errorAiMessage]); 
+      setChatMessages(prev => [...prev, errorAiMessage]); // Update main UI state
       
+      // Save error message to chat in active session
       updateActiveSessionInStorage(session => ({
         ...session,
         chatMessages: [...(session.chatMessages || []), errorAiMessage],
@@ -533,7 +540,7 @@ export function AppLayoutClient() {
       size="icon"
       onClick={() => setIsHistoryPanelOpen(true)}
       aria-label="View chat history"
-      className="bg-accent text-accent-foreground hover:bg-accent/90"
+      className="bg-accent text-accent-foreground hover:bg-accent/90" // Styled to match header buttons
     >
       <PanelLeft className="h-5 w-5" />
     </Button>
@@ -556,7 +563,7 @@ export function AppLayoutClient() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPendingSymptomData(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmStartNewFromDialog} className="bg-secondary hover:bg-secondary/80">Start as New Chat</AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmStartNewFromDialog} className="bg-slate-100 text-slate-900 hover:bg-slate-200 focus-visible:ring-slate-500 ring-offset-background">Start as New Chat</AlertDialogAction>
             <AlertDialogAction onClick={handleConfirmUpdateCurrent}>Update Current Chat</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -575,14 +582,14 @@ export function AppLayoutClient() {
 
         <SymptomForm onSubmit={handleSymptomSubmit} isLoading={isLoadingAI} currentSymptoms={currentSymptomsInput} />
 
-        {(isLoadingAI && !aiResponse) && ( 
+        {(isLoadingAI && !aiResponse && !activeSessionId) && ( // Show initial loading only if no session context implies it's a very first load
           <div className="mt-8 text-center">
             <LoadingSpinner size={48} />
             <p className="text-muted-foreground mt-2">Analyzing your symptoms...</p>
           </div>
         )}
 
-        {currentImageDataUri && !isLoadingAI && (
+        {currentImageDataUri && ( // Display image if it's set for the current context
           <div className="w-full max-w-md mx-auto my-4 p-2 border rounded-lg shadow-md bg-card">
             <h3 className="text-sm font-medium text-card-foreground mb-2 text-center">Symptom Image Provided:</h3>
             <Image
@@ -595,7 +602,7 @@ export function AppLayoutClient() {
           </div>
         )}
 
-        {aiResponse && !isLoadingAI && (
+        {aiResponse && ( // Only render these sections if aiResponse (from current or loaded session) exists
           <div className="w-full max-w-3xl space-y-6">
             <SeverityAssessmentDisplay assessment={aiResponse.severityAssessment} />
 
@@ -641,7 +648,7 @@ export function AppLayoutClient() {
             />
           </div>
         )}
-        {!activeSessionId && !isLoadingAI && !aiResponse && (
+        {!activeSessionId && !isLoadingAI && !aiResponse && ( // Welcome message only if no active session and not loading initial
           <div className="mt-12 text-center text-muted-foreground">
             <p className="text-lg">Welcome to HealthAssist AI!</p>
             <p>Please describe your symptoms in the form above to get started, or load a previous chat from the history.</p>
