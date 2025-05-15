@@ -8,8 +8,9 @@ import { PotentialConditionsDisplay } from './_components/PotentialConditionsDis
 import { DoctorMapSection } from './_components/DoctorMapSection';
 import { VisualFollowUpChoices } from './_components/VisualFollowUpChoices';
 import { RefinedDiagnosisDisplay } from './_components/RefinedDiagnosisDisplay';
+import { FollowUpSection, type ClarificationResponse } from './_components/FollowUpSection';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { getAIResponse, type FullAIResponse, refineDiagnosisWithVisual } from '@/actions/aiActions';
+import { getAIResponse, type FullAIResponse, refineDiagnosisWithVisual, getAIFollowUpResponse } from '@/actions/aiActions';
 import type { RefineDiagnosisOutput } from '@/ai/flows/refineDiagnosisWithVisualFlow';
 import { useToast } from '@/hooks/use-toast';
 import type { UserLocation } from '@/lib/geolocation';
@@ -25,8 +26,9 @@ export function AppLayoutClient() {
 
   const [isLoadingVisualFollowUp, setIsLoadingVisualFollowUp] = useState(false);
   const [visualFollowUpResult, setVisualFollowUpResult] = useState<RefineDiagnosisOutput | null>(null);
+  
   const [currentSymptoms, setCurrentSymptoms] = useState<string>('');
-
+  const [currentImageDataUri, setCurrentImageDataUri] = useState<string | undefined>(undefined);
 
   const { toast } = useToast();
 
@@ -56,11 +58,11 @@ export function AppLayoutClient() {
     setCurrentSymptoms(data.symptoms); 
     setSymptomsForDoctorSearch(data.symptoms);
 
-    let imageDataUri: string | undefined = undefined;
+    let imageDataUriSubmission: string | undefined = undefined;
     if (data.image && data.image.length > 0) {
       const file = data.image[0];
       try {
-        imageDataUri = await new Promise((resolve, reject) => {
+        imageDataUriSubmission = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
           reader.onerror = (error) => reject(new Error('Failed to read image file: ' + error));
@@ -73,12 +75,13 @@ export function AppLayoutClient() {
           description: (error as Error).message || 'Could not process the image. Proceeding without it.',
           variant: 'destructive',
         });
-        imageDataUri = undefined; // Ensure it's undefined if reading fails
+        imageDataUriSubmission = undefined;
       }
     }
+    setCurrentImageDateUri(imageDataUriSubmission); // Store for potential follow-up
 
     try {
-      const response = await getAIResponse(data.symptoms, imageDataUri);
+      const response = await getAIResponse(data.symptoms, imageDataUriSubmission);
       setAiResponse(response);
     } catch (error) {
       toast({
@@ -107,8 +110,6 @@ export function AppLayoutClient() {
     setIsLoadingVisualFollowUp(true);
     setVisualFollowUpResult(null);
     try {
-      // Note: The refineDiagnosisWithVisual flow currently doesn't use an image by default.
-      // If the initially uploaded image should be used here, refineDiagnosisWithVisual action and flow would need modification.
       const result = await refineDiagnosisWithVisual({
         selectedCondition,
         originalSymptoms: currentSymptoms,
@@ -125,6 +126,20 @@ export function AppLayoutClient() {
     }
   };
 
+  const handleFollowUpUpdate = (clarification: ClarificationResponse) => {
+    // Update main aiResponse if the follow-up provided new structured data
+    if (clarification.newSeverityAssessment || clarification.newPotentialConditions) {
+      setAiResponse(prev => {
+        if (!prev) return null; // Should not happen if FollowUpSection is visible
+        return {
+          ...prev,
+          severityAssessment: clarification.newSeverityAssessment || prev.severityAssessment,
+          potentialConditions: clarification.newPotentialConditions || prev.potentialConditions,
+        };
+      });
+      toast({title: "AI Insights Updated", description: "The AI has updated its assessment based on your follow-up."})
+    }
+  };
 
   return (
     <div className="flex flex-col items-center w-full space-y-8">
@@ -134,7 +149,8 @@ export function AppLayoutClient() {
         <div className="mt-8 text-center">
           <LoadingSpinner size={48} />
           <p className="text-muted-foreground mt-2">
-            {isLoadingAI ? 'Analyzing your symptoms and finding recommendations...' : 'Getting refined insights...'}
+            {isLoadingAI ? 'Analyzing your symptoms and finding recommendations...' : 
+             (isLoadingVisualFollowUp ? 'Getting refined insights...' : 'Processing...')}
           </p>
         </div>
       )}
@@ -157,6 +173,15 @@ export function AppLayoutClient() {
 
           {visualFollowUpResult && !isLoadingVisualFollowUp && (
             <RefinedDiagnosisDisplay result={visualFollowUpResult} />
+          )}
+
+          {!isLoadingVisualFollowUp && ( // Show follow-up section after initial analysis & if not in visual follow-up loading state
+            <FollowUpSection
+              originalSymptoms={currentSymptoms}
+              originalImageDataUri={currentImageDataUri}
+              currentAIResponse={aiResponse}
+              onFollowUpUpdate={handleFollowUpUpdate}
+            />
           )}
           
           <DoctorMapSection 

@@ -1,3 +1,4 @@
+
 // This is an AI-powered health assessment tool.
 'use server';
 
@@ -23,6 +24,7 @@ const AssessSymptomSeverityInputSchema = z.object({
 });
 export type AssessSymptomSeverityInput = z.infer<typeof AssessSymptomSeverityInputSchema>;
 
+// Schema is defined here but NOT exported directly
 const AssessSymptomSeverityOutputSchema = z.object({
   severityAssessment: z
     .string()
@@ -137,3 +139,4 @@ const assessSymptomSeverityFlow = ai.defineFlow(
     }
   }
 );
+

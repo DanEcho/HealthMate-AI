@@ -3,6 +3,14 @@
 
 'use server';
 
+/**
+ * @fileOverview Suggests potential medical conditions based on symptoms and optional image.
+ * 
+ * - suggestPotentialConditions - Function to get potential conditions.
+ * - SuggestPotentialConditionsInput - Input type.
+ * - SuggestPotentialConditionsOutput - Output type.
+ */
+
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
@@ -15,12 +23,14 @@ const SuggestPotentialConditionsInputSchema = z.object({
 });
 export type SuggestPotentialConditionsInput = z.infer<typeof SuggestPotentialConditionsInputSchema>;
 
+// Schema is defined here but NOT exported directly
 const SuggestedConditionSchema = z.object({
   condition: z.string().describe('The name of the potential medical condition.'),
   explanation: z.string().describe('A concise explanation of the condition and its relevance to the symptoms and image (if provided).'),
   distinguishingSymptoms: z.array(z.string()).describe('Up to 3 key symptoms that help distinguish this condition, especially from other conditions that might present similarly based on the initial user input. Be concise.'),
 });
 
+// Schema is defined here but NOT exported directly
 const SuggestPotentialConditionsOutputSchema = z.array(SuggestedConditionSchema).describe('A list of potential medical conditions, their explanations, and distinguishing symptoms.');
 export type SuggestPotentialConditionsOutput = z.infer<typeof SuggestPotentialConditionsOutputSchema>;
 
@@ -121,3 +131,4 @@ const suggestPotentialConditionsFlow = ai.defineFlow(
     }
   }
 );
+
