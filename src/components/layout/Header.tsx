@@ -1,19 +1,27 @@
 
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { MapIcon, Stethoscope, HomeIcon, LogIn, LogOut, UserPlus } from 'lucide-react';
+import { MapIcon, Stethoscope, HomeIcon, LogIn, LogOut, UserPlus, PanelLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
-export function Header() {
+interface HeaderProps {
+  headerLeftAction?: ReactNode; // To accept the chat history button
+}
+
+export function Header({ headerLeftAction }: HeaderProps) {
   const { user, loading, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-[1000] w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90">
       <div className="container flex h-16 items-center justify-between text-neutral-800">
-        <div className="flex items-center gap-2"> {/* Reduced gap */}
+        <div className="flex items-center gap-2">
+          {/* Render the passed action button (Chat History Trigger) on the far left */}
+          {headerLeftAction}
+
           <Link href="/" passHref>
             <Button size="sm" className="flex items-center gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
               <HomeIcon className="h-4 w-4" />
@@ -35,7 +43,7 @@ export function Header() {
           </h1>
         </Link>
 
-        <div className="flex items-center gap-2"> {/* Reduced gap */}
+        <div className="flex items-center gap-2">
           {loading ? (
             <LoadingSpinner size={20} />
           ) : user ? (
@@ -67,4 +75,3 @@ export function Header() {
     </header>
   );
 }
-

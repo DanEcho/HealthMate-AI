@@ -1,10 +1,10 @@
 
 'use client';
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose, SheetDescription, SheetFooter } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { PanelLeft, PlusCircle, Trash2, MessageSquareText } from 'lucide-react';
+import { PlusCircle, Trash2, MessageSquareText } from 'lucide-react';
 import type { ChatSession } from '../AppLayoutClient';
 import { cn } from '@/lib/utils';
 
@@ -16,7 +16,7 @@ interface ChatHistoryPanelProps {
   onLoadSession: (sessionId: string) => void;
   onStartNewSession: () => void;
   onDeleteSession: (sessionId: string) => void;
-  triggerButton: React.ReactNode;
+  // triggerButton prop removed as the trigger is now in the Header
 }
 
 export function ChatHistoryPanel({
@@ -27,23 +27,23 @@ export function ChatHistoryPanel({
   onLoadSession,
   onStartNewSession,
   onDeleteSession,
-  triggerButton,
 }: ChatHistoryPanelProps) {
 
   const getSessionTitle = (session: ChatSession): string => {
-    if (session.title) return session.title; // Use pre-defined title if exists (future enhancement)
+    if (session.title) return session.title;
     if (session.currentSymptoms && session.currentSymptoms.trim().length > 0) {
       const title = session.currentSymptoms.substring(0, 35);
       return title.length < session.currentSymptoms.length ? title + '...' : title;
     }
-    return `Chat from ${new Date(session.timestamp).toLocaleDateString()}`;
+    // Fallback title using a more detailed timestamp if symptoms are empty
+    return `Chat from ${new Date(session.timestamp).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
   };
 
+
   return (
+    // Sheet is controlled by isOpen and onOpenChange from AppLayoutClient
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetTrigger asChild>
-        {triggerButton}
-      </SheetTrigger>
+      {/* SheetTrigger is now external, located in the Header component */}
       <SheetContent side="left" className="w-[300px] sm:w-[350px] flex flex-col p-0">
         <SheetHeader className="p-4 pb-3 border-b">
           <SheetTitle className="text-xl">Chat History</SheetTitle>
@@ -51,12 +51,12 @@ export function ChatHistoryPanel({
             Select a previous chat or start a new one.
           </SheetDescription>
         </SheetHeader>
-        
+
         <div className="p-4 border-b">
-            <Button onClick={() => { onStartNewSession(); onOpenChange(false); }} className="w-full" variant="outline">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Start New Chat
-            </Button>
+          <Button onClick={() => { onStartNewSession(); onOpenChange(false); }} className="w-full" variant="outline">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Start New Chat
+          </Button>
         </div>
 
         {sessions.length === 0 ? (
@@ -78,7 +78,7 @@ export function ChatHistoryPanel({
                   )}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { onLoadSession(session.id); onOpenChange(false); }}}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { onLoadSession(session.id); onOpenChange(false); } }}
                 >
                   <div className="flex justify-between items-start">
                     <h3 className="text-sm font-medium truncate flex-1 pr-2 leading-tight">{getSessionTitle(session)}</h3>
@@ -87,7 +87,7 @@ export function ChatHistoryPanel({
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
                       onClick={(e) => {
-                        e.stopPropagation(); // Prevent triggering onLoadSession
+                        e.stopPropagation();
                         onDeleteSession(session.id);
                       }}
                       aria-label="Delete session"
@@ -98,15 +98,18 @@ export function ChatHistoryPanel({
                   <p className="text-xs text-muted-foreground">
                     {new Date(session.timestamp).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </p>
+                   {session.currentImageDataUri && (
+                    <p className="text-xs text-blue-400 italic mt-0.5">Image attached</p>
+                  )}
                 </div>
               ))}
             </div>
           </ScrollArea>
         )}
         <SheetFooter className="p-4 pt-3 border-t">
-            <SheetClose asChild>
-                <Button variant="outline" className="w-full">Close</Button>
-            </SheetClose>
+          <SheetClose asChild>
+            <Button variant="outline" className="w-full">Close</Button>
+          </SheetClose>
         </SheetFooter>
       </SheetContent>
     </Sheet>
