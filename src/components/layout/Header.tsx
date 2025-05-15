@@ -11,8 +11,8 @@ export function Header() {
   const { user, loading, logout } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
+    <header className="sticky top-0 z-[1000] w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90">
+      <div className="container flex h-16 items-center justify-between text-neutral-800">
         <div className="flex items-center gap-2"> {/* Reduced gap */}
           <Link href="/" passHref>
             <Button variant="outline" size="sm" className="flex items-center gap-2">
@@ -30,7 +30,7 @@ export function Header() {
         
         <Link href="/" className="flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
           <Stethoscope className="h-7 w-7 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-800">
             HealthAssist AI
           </h1>
         </Link>
@@ -40,7 +40,7 @@ export function Header() {
             <LoadingSpinner size={20} />
           ) : user ? (
             <>
-              {user.email && <span className="text-sm text-muted-foreground hidden md:inline">Hi, {user.email.split('@')[0]}</span>}
+              {user.email && <span className="text-sm text-neutral-500 hidden md:inline">Hi, {user.email.split('@')[0]}</span>}
               <Button variant="outline" size="sm" onClick={logout} className="flex items-center gap-2">
                 <LogOut className="h-4 w-4" />
                 <span>Logout</span>
