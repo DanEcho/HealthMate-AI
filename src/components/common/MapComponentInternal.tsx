@@ -2,9 +2,9 @@
 'use client';
 
 import 'leaflet/dist/leaflet.css';
-import L, { type Map as LeafletMapType, type LayerGroup as LeafletLayerGroupType, type DivIcon as LeafletDivIconType, type Icon as LeafletIconType } from 'leaflet';
+import L, { type Map as LeafletMapType, type LayerGroup as LeafletLayerGroupType, type DivIcon as LeafletDivIconType, type Icon as LeafletIconType, type CircleMarker as LeafletCircleMarkerType } from 'leaflet';
 import type { UserLocation } from '@/lib/geolocation';
-import { Hospital, Stethoscope, MapPin } from 'lucide-react';
+import { Hospital, Stethoscope, MapPin as MapPinIconLucide } from 'lucide-react'; // Renamed MapPin to avoid conflict
 import { cn } from '@/lib/utils';
 import ReactDOMServer from 'react-dom/server';
 import React, { useEffect, useRef } from 'react';
@@ -56,19 +56,19 @@ function createLeafletIcon(type: MapMarker['type']): LeafletDivIconType | Leafle
   }
 
   let iconComponent;
-  let colorClass = 'text-primary';
+  let colorClass = 'text-primary'; // Default color
 
   switch (type) {
     case 'hospital':
       iconComponent = <Hospital className="h-5 w-5" />;
-      colorClass = 'text-red-600'; // Hospitals typically red
+      colorClass = 'text-red-600'; 
       break;
     case 'doctor':
       iconComponent = <Stethoscope className="h-5 w-5" />;
-      colorClass = 'text-blue-600'; // Doctors typically blue
+      colorClass = 'text-blue-600';
       break;
     default:
-      iconComponent = <MapPin className="h-5 w-5" />;
+      iconComponent = <MapPinIconLucide className="h-5 w-5" />;
       colorClass = 'text-gray-700';
   }
 
@@ -79,10 +79,10 @@ function createLeafletIcon(type: MapMarker['type']): LeafletDivIconType | Leafle
   try {
     const newIcon = L.divIcon({
       html: iconHtml,
-      className: 'bg-transparent border-none leaflet-custom-div-icon',
-      iconSize: [24, 24],
-      iconAnchor: [12, 24],
-      popupAnchor: [0, -24],
+      className: 'bg-transparent border-none leaflet-custom-div-icon', // Ensures no default Leaflet styling interferes
+      iconSize: [24, 24], // Adjust as needed
+      iconAnchor: [12, 24], // Point of the icon which will correspond to marker's location
+      popupAnchor: [0, -24], // Point from which the popup should open relative to the iconAnchor
     });
     iconCache[cacheKey] = newIcon;
     return newIcon;
@@ -102,18 +102,16 @@ export function ActualLeafletMap({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<LeafletMapType | null>(null);
   const markersLayerRef = useRef<LeafletLayerGroupType | null>(null);
+  const userLocationMarkerRef = useRef<LeafletCircleMarkerType | null>(null);
 
   useEffect(() => {
-    if (!mapContainerRef.current) return;
-    // Do NOT initialize if mapInstanceRef.current already exists.
-    // This check is crucial to prevent re-initialization if the component itself
-    // doesn't unmount but its parent causes a re-render with the same key.
-    if (mapInstanceRef.current) {
-      // If map exists, just update view and markers if necessary (handled by other useEffects)
+    if (!mapContainerRef.current || mapInstanceRef.current) {
+      // If no container or map already initialized by this instance, do nothing.
+      // The key on DynamicMapComponent > LoadedMap (ActualLeafletMap) handles re-mounts.
       return;
     }
     
-    mapInstanceRef.current = L.map(mapContainerRef.current);
+    mapInstanceRef.current = L.map(mapContainerRef.current); // Initialize on the current div
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -122,32 +120,51 @@ export function ActualLeafletMap({
 
     markersLayerRef.current = L.layerGroup().addTo(mapInstanceRef.current);
 
-    if (center) {
-      mapInstanceRef.current.setView([center.lat, center.lng], zoom);
-    }
+    // Set initial view and user location marker are handled in the next useEffect
     
     return () => {
+      // Cleanup function for when ActualLeafletMap component unmounts
+      if (userLocationMarkerRef.current) {
+        userLocationMarkerRef.current.remove();
+        userLocationMarkerRef.current = null;
+      }
+      if (markersLayerRef.current) {
+        markersLayerRef.current.clearLayers(); // Clear layers from the group
+      }
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
+        mapInstanceRef.current.remove(); // This is Leaflet's own cleanup method
         mapInstanceRef.current = null;
-        // Also clear markersLayerRef when map is removed
-        if (markersLayerRef.current) {
-          markersLayerRef.current.clearLayers(); // Clear layers from the group
-          markersLayerRef.current = null; // Nullify the ref
-        }
       }
     };
-  }, []); // Intentionally empty: map initialization and cleanup only.
+  }, []); // Empty dependency array: runs once on mount, cleanup on unmount.
 
+  // Effect to update map view and user location marker when center or zoom changes
   useEffect(() => {
     if (mapInstanceRef.current && center) {
       mapInstanceRef.current.setView([center.lat, center.lng], zoom);
-    }
-  }, [center, zoom]);
 
+      // Add or update user location marker
+      if (userLocationMarkerRef.current) {
+        userLocationMarkerRef.current.setLatLng([center.lat, center.lng]);
+      } else {
+        userLocationMarkerRef.current = L.circleMarker([center.lat, center.lng], {
+          radius: 8,
+          fillColor: 'hsl(var(--primary))', // Blue, from theme
+          color: 'hsl(var(--card))',      // White, from theme
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.8,
+        }).addTo(mapInstanceRef.current);
+      }
+      userLocationMarkerRef.current.bindPopup('Your Location');
+    }
+  }, [center, zoom]); // Re-run if center or zoom props change
+
+  // Effect to update POI markers when `markers` prop changes
   useEffect(() => {
     if (mapInstanceRef.current && markersLayerRef.current) {
-      markersLayerRef.current.clearLayers();
+      markersLayerRef.current.clearLayers(); // Clear previous POI markers
+
       markers.forEach(markerData => {
         const icon = createLeafletIcon(markerData.type);
         const leafletMarker = L.marker([markerData.position.lat, markerData.position.lng], { icon });
@@ -155,8 +172,8 @@ export function ActualLeafletMap({
         let popupContent = `<b>${markerData.title || 'Unnamed Location'}</b>`;
         if (markerData.specialty) popupContent += `<br>Specialty: ${markerData.specialty}`;
         if (markerData.description) popupContent += `<br>${markerData.description}`;
-        if (markerData.distance) popupContent += `<br>Distance: ${markerData.distance}`;
-        if (markerData.phone) popupContent += `<br>Phone: ${markerData.phone}`;
+        if (markerData.distance) popupContent += `<br>Distance: ${markerData.distance}`; // Assuming distance is pre-calculated
+        if (markerData.phone) popupContent += `<br>Phone: <a href="tel:${markerData.phone.replace(/\s/g, '')}">${markerData.phone}</a>`;
         if (markerData.website && markerData.website !== '#') {
           popupContent += `<br><a href="${markerData.website}" target="_blank" rel="noopener noreferrer" style="color:hsl(var(--primary));text-decoration:underline;">Visit Website</a>`;
         }
@@ -168,6 +185,8 @@ export function ActualLeafletMap({
   }, [markers]); // Re-run if markers array changes
 
   if (!center && !mapInstanceRef.current) {
+    // This case should ideally be handled by the parent DynamicMapComponent's loading state
+    // or by ensuring `center` is always provided before this component renders.
     return (
       <div className={cn("flex items-center justify-center h-96 w-full bg-muted rounded-lg", className)} style={style}>
         <p className="text-muted-foreground">Map initializing or center location not available.</p>
@@ -175,6 +194,9 @@ export function ActualLeafletMap({
     );
   }
   
+  // The div that Leaflet will attach to.
+  // Its existence is managed by React's lifecycle.
+  // The key on DynamicMapComponent > LoadedMap (ActualLeafletMap) ensures this div is fresh if needed.
   return (
     <div
       ref={mapContainerRef}
@@ -183,3 +205,4 @@ export function ActualLeafletMap({
     />
   );
 }
+
