@@ -4,56 +4,57 @@
 
 @layer base {
   :root {
-    /* Light Theme - Green & White */
-    --background: 0 0% 100%; /* White */
-    --foreground: 120 25% 25%; /* Dark Green for text */
+    /* Light Theme - Overridden to Dark Green Theme */
+    --background: 150 50% 20%; /* Dark Cyan-Green */
+    --foreground: 150 25% 90%; /* Very Light Cyan-Green for text */
 
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 120 25% 25%;
+    --card: 150 45% 28%; /* Slightly Lighter Dark Cyan-Green for cards */
+    --card-foreground: 150 25% 88%; /* Light Cyan-Green for card text */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 120 25% 25%;
+    --popover: 150 45% 25%; /* Consistent with card or slightly darker */
+    --popover-foreground: 150 25% 88%;
 
-    --primary: 145 63% 42%; /* Pleasant Green */
-    --primary-foreground: 0 0% 100%; /* White */
+    --primary: 130 60% 50%; /* Brighter, distinct Green */
+    --primary-foreground: 0 0% 10%; /* Dark text for contrast on bright green */
 
-    --secondary: 120 10% 95%; /* Very Light Greenish Grey */
-    --secondary-foreground: 120 25% 25%;
+    --secondary: 150 40% 35%; /* Muted Dark Cyan-Green */
+    --secondary-foreground: 150 25% 85%;
 
-    --muted: 120 10% 90%; /* Light Greenish Grey */
-    --muted-foreground: 120 15% 45%;
+    --muted: 150 30% 40%; /* Darker Muted Cyan-Green */
+    --muted-foreground: 150 20% 70%; /* Lighter muted text for readability */
 
-    --accent: 130 50% 55%; /* Lighter, vibrant Green */
-    --accent-foreground: 0 0% 100%; /* White */
+    --accent: 100 60% 55%; /* Contrasting Lime Green for accents */
+    --accent-foreground: 0 0% 0%; /* Black text on accent */
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 70% 55%; /* Visible Red */
+    --destructive-foreground: 0 0% 100%; /* White */
 
-    --border: 120 10% 88%; /* Light grey-green border */
-    --input: 120 20% 96%; /* Very light grey-green input background */
-    --ring: 145 63% 42%; /* Primary green for ring */
+    --border: 150 40% 38%; /* Border for cards, visible against card bg */
+    --input: 150 40% 45%; /* Input border (default, if not overridden by component) */
+    --ring: 130 60% 55%; /* Ring color, related to primary/accent */
 
-    --radius: 0.5rem; /* Default ShadCN radius, can be overridden for "bubbly" */
+    --radius: 1.25rem; /* Bubbly effect - increased from 0.5rem */
 
-    --chart-1: 145 63% 42%;
-    --chart-2: 130 50% 55%;
-    --chart-3: 150 40% 30%;
-    --chart-4: 120 30% 60%;
-    --chart-5: 160 50% 50%;
+    /* Chart colors adjusted for dark background visibility */
+    --chart-1: 130 70% 60%;
+    --chart-2: 100 70% 65%;
+    --chart-3: 150 60% 55%;
+    --chart-4: 170 50% 60%;
+    --chart-5: 190 60% 65%;
 
-    /* Sidebar colors adjusted to match green/white theme */
-    --sidebar-background: 120 10% 97%; /* Off-white with a hint of green */
-    --sidebar-foreground: 120 25% 25%;
-    --sidebar-primary: 145 63% 42%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 130 50% 55%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 120 10% 88%;
-    --sidebar-ring: 145 63% 42%;
+    /* Sidebar colors adjusted for dark green theme */
+    --sidebar-background: 150 48% 18%; /* Slightly darker/different dark green */
+    --sidebar-foreground: 150 25% 88%;
+    --sidebar-primary: 130 60% 50%;
+    --sidebar-primary-foreground: 0 0% 10%;
+    --sidebar-accent: 100 60% 55%;
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 150 40% 30%;
+    --sidebar-ring: 130 60% 55%;
   }
 
   .dark {
-    /* Dark Theme - Keeping it darker, but primary/accent can still be green */
+    /* Dark Theme - Retained with adjustments for consistency if needed */
     --background: 210 10% 15%; /* Dark blue/grey */
     --foreground: 120 10% 85%; /* Light grey-green text */
 
@@ -79,14 +80,16 @@
     --destructive-foreground: 0 0% 98%;
 
     --border: 210 10% 35%;
-    --input: 210 10% 30%;
+    --input: 210 10% 40%; /* Input border in dark mode */
     --ring: 145 63% 49%; /* Green for ring in dark mode */
     
-    --chart-1: 145 63% 49%;
-    --chart-2: 130 50% 60%;
-    --chart-3: 150 40% 40%;
-    --chart-4: 120 30% 70%;
-    --chart-5: 160 50% 60%;
+    --radius: 1.25rem; /* Consistent bubbly effect */
+
+    --chart-1: 145 70% 55%;
+    --chart-2: 130 60% 65%;
+    --chart-3: 150 50% 50%;
+    --chart-4: 120 40% 75%;
+    --chart-5: 160 60% 65%;
 
     --sidebar-background: 210 10% 12%;
     --sidebar-foreground: 120 10% 85%;
@@ -101,7 +104,7 @@
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border; /* General borders use the theme's --border */
   }
   body {
     @apply bg-background text-foreground;
