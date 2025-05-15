@@ -156,7 +156,7 @@ export function DoctorMapSection({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {MOCK_DOCTORS.map(doc => {
                         const isRecommended = AIsuggestedSpecialtyCleaned && doc.specialty && doc.specialty.toLowerCase().includes(AIsuggestedSpecialtyCleaned);
-                        return <DoctorCard key={doc.id} doctor={doc} isRecommended={isRecommended} />;
+                        return <DoctorCard key={doc.id} doctor={doc} isRecommended={!!isRecommended} />;
                       })}
                     </div>
                   ) : (

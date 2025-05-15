@@ -13,7 +13,7 @@ interface DoctorCardProps {
 
 export function DoctorCard({ doctor, isRecommended }: DoctorCardProps) {
   return (
-    <Card className={`shadow-md hover:shadow-lg transition-shadow ${isRecommended ? 'border-2 border-accent bg-accent/5' : 'border-border'}`}>
+    <Card className={`shadow-md hover:shadow-lg transition-shadow ${isRecommended ? 'border-2 border-accent bg-accent/10' : 'border-border'}`}>
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start gap-2">
           <CardTitle className="text-lg font-semibold">{doctor.title}</CardTitle>
