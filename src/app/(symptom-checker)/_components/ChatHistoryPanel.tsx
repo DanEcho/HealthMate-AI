@@ -16,7 +16,6 @@ interface ChatHistoryPanelProps {
   onLoadSession: (sessionId: string) => void;
   onStartNewSession: () => void;
   onDeleteSession: (sessionId: string) => void;
-  // triggerButton prop removed as the trigger is now in the Header
 }
 
 export function ChatHistoryPanel({
@@ -35,15 +34,12 @@ export function ChatHistoryPanel({
       const title = session.currentSymptoms.substring(0, 35);
       return title.length < session.currentSymptoms.length ? title + '...' : title;
     }
-    // Fallback title using a more detailed timestamp if symptoms are empty
     return `Chat from ${new Date(session.timestamp).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
   };
 
 
   return (
-    // Sheet is controlled by isOpen and onOpenChange from AppLayoutClient
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      {/* SheetTrigger is now external, located in the Header component */}
       <SheetContent side="left" className="w-[300px] sm:w-[350px] flex flex-col p-0">
         <SheetHeader className="p-4 pb-3 border-b">
           <SheetTitle className="text-xl">Chat History</SheetTitle>
@@ -68,7 +64,7 @@ export function ChatHistoryPanel({
         ) : (
           <ScrollArea className="flex-grow">
             <div className="space-y-1 p-4">
-              {sessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((session) => (
+              {[...sessions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((session) => (
                 <div
                   key={session.id}
                   onClick={() => { onLoadSession(session.id); onOpenChange(false); }}
@@ -115,3 +111,4 @@ export function ChatHistoryPanel({
     </Sheet>
   );
 }
+
