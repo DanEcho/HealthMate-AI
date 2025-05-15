@@ -41,11 +41,6 @@ export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFor
     if (!currentSymptoms) { // If symptoms are cleared (new chat), clear file name
         setFileName(null);
     }
-    // If currentSymptoms is populated (loading old chat), image is not re-selected here by default.
-    // The parent component (AppLayoutClient) handles restoring currentImageDataUri.
-    // If a file *was* part of currentSymptoms, it would need to be re-selected by the user
-    // if they intend to submit *that specific file again* with this form instance.
-    // For now, we just ensure the text field is updated.
   }, [currentSymptoms, form]);
 
 
@@ -94,8 +89,8 @@ export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFor
               control={form.control}
               name="image"
               render={() => ( 
-                <FormItem className="p-6 rounded-xl border bg-white dark:bg-neutral-800 shadow-md">
-                  <FormLabel htmlFor="image-upload" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 flex items-center gap-2 cursor-pointer">
+                <FormItem className="p-6 rounded-xl border bg-card shadow-md"> {/* Reverted to bg-card */}
+                  <FormLabel htmlFor="image-upload" className="text-sm font-medium text-card-foreground flex items-center gap-2 cursor-pointer"> {/* Adjusted text color */}
                     <ImagePlus className="h-5 w-5 text-muted-foreground" />
                     Upload an Image (Optional)
                   </FormLabel>
@@ -108,7 +103,7 @@ export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFor
                         className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer mt-2"
                       />
                   </FormControl>
-                  {fileName && <FormDescription className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">Selected file: {fileName}</FormDescription>}
+                  {fileName && <FormDescription className="mt-2 text-xs text-muted-foreground">Selected file: {fileName}</FormDescription>} {/* Adjusted text color */}
                   <FormMessage />
                 </FormItem>
               )}
