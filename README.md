@@ -2,6 +2,8 @@
 
 HealthMate AI is an innovative prototype application designed to provide AI-powered health insights and assist users in finding nearby medical facilities. It leverages cutting-edge AI to analyze user-reported symptoms, suggest potential conditions, and offer guidance on next steps.
 
+HealthMate AI was created for the Google APAC Solution Challenge 2025
+
 ## Core Features
 
 *   **Symptom Input & Analysis**:
