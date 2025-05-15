@@ -22,7 +22,7 @@ export type SymptomFormData = z.infer<typeof formSchema>;
 interface SymptomFormProps {
   onSubmit: SubmitHandler<SymptomFormData>;
   isLoading: boolean;
-  currentSymptoms?: string; // Added to allow pre-filling
+  currentSymptoms?: string; 
 }
 
 export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFormProps) {
@@ -35,10 +35,9 @@ export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFor
     },
   });
 
-  // Effect to update form if currentSymptoms prop changes (e.g., when loading a session)
   useEffect(() => {
     form.reset({ symptoms: currentSymptoms || '', image: undefined });
-    if (!currentSymptoms) { // If symptoms are cleared (new session), also clear filename
+    if (!currentSymptoms) { 
         setFileName(null);
     }
   }, [currentSymptoms, form]);
@@ -89,8 +88,8 @@ export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFor
               control={form.control}
               name="image"
               render={() => ( 
-                <FormItem>
-                  <FormLabel htmlFor="image-upload" className="text-sm font-medium text-foreground flex items-center gap-2">
+                <FormItem className="p-4 rounded-lg border bg-card/50 shadow-sm">
+                  <FormLabel htmlFor="image-upload" className="text-sm font-medium text-foreground flex items-center gap-2 cursor-pointer">
                     <ImagePlus className="h-5 w-5 text-muted-foreground" />
                     Upload an Image (Optional)
                   </FormLabel>
@@ -99,11 +98,11 @@ export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFor
                         id="image-upload"
                         type="file"
                         accept="image/*"
-                        onChange={handleFileChange} // field.onChange is not directly suitable for FileList from input type="file"
-                        className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                        onChange={handleFileChange} 
+                        className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
                       />
                   </FormControl>
-                  {fileName && <FormDescription>Selected file: {fileName}</FormDescription>}
+                  {fileName && <FormDescription className="mt-2 text-xs">Selected file: {fileName}</FormDescription>}
                   <FormMessage />
                 </FormItem>
               )}
