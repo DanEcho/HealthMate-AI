@@ -27,33 +27,57 @@ export async function getAIResponse(symptoms: string, imageDataUri?: string): Pr
   console.log(`[aiActions] getAIResponse initiated with symptoms: "${symptoms}" ${imageDataUri ? 'and an image.' : 'without an image.'}`);
 
   try {
-    const [severityAssessment, potentialConditions] = await Promise.all([
+    // Using Promise.allSettled to ensure all promises complete, even if some reject
+    const [severityAssessmentResult, potentialConditionsResult, doctorSpecialtySuggestionResult] = await Promise.allSettled([
       assessSymptomSeverity({ symptoms, imageDataUri }),
       suggestPotentialConditions({ symptoms, imageDataUri }),
+      suggestDoctorSpecialty({ symptoms }), // Image not typically used for specialty suggestion
     ]);
 
-    console.log('[aiActions] Successfully received severityAssessment:', JSON.stringify(severityAssessment, null, 2));
-    console.log('[aiActions] Successfully received potentialConditions:', JSON.stringify(potentialConditions, null, 2));
+    // Process severity assessment
+    let severityAssessment: AssessSymptomSeverityOutput;
+    if (severityAssessmentResult.status === 'fulfilled') {
+      severityAssessment = severityAssessmentResult.value;
+      console.log('[aiActions] Successfully received severityAssessment:', JSON.stringify(severityAssessment, null, 2));
+    } else {
+      console.error('[aiActions] Failed to get severityAssessment:', severityAssessmentResult.reason);
+      throw new Error(`Failed to get severity assessment: ${(severityAssessmentResult.reason as Error).message || 'Unknown error'}`);
+    }
+
+    // Process potential conditions
+    let potentialConditions: SuggestPotentialConditionsOutput;
+    if (potentialConditionsResult.status === 'fulfilled') {
+      potentialConditions = potentialConditionsResult.value;
+      console.log('[aiActions] Successfully received potentialConditions:', JSON.stringify(potentialConditions, null, 2));
+    } else {
+      console.error('[aiActions] Failed to get potentialConditions:', potentialConditionsResult.reason);
+      throw new Error(`Failed to get potential conditions: ${(potentialConditionsResult.reason as Error).message || 'Unknown error'}`);
+    }
+    
+    // Process doctor specialty suggestion (optional, so don't throw if it fails)
+    let doctorSpecialtySuggestion: SuggestDoctorSpecialtyOutput | undefined = undefined;
+    if (doctorSpecialtySuggestionResult.status === 'fulfilled') {
+      doctorSpecialtySuggestion = doctorSpecialtySuggestionResult.value;
+      console.log('[aiActions] Successfully received doctorSpecialtySuggestion:', JSON.stringify(doctorSpecialtySuggestion, null, 2));
+    } else {
+      console.warn(`[aiActions] Failed to get doctor specialty suggestion for symptoms: "${symptoms}". Error:`, doctorSpecialtySuggestionResult.reason);
+      // Not throwing an error here as it's considered non-critical for the initial response
+    }
 
     if (!severityAssessment || !potentialConditions) {
-      console.error('[aiActions] One or more AI responses were unexpectedly empty.', { severityAssessment, potentialConditions });
+      // This case should ideally be caught by individual promise rejections above
+      console.error('[aiActions] One or more critical AI responses were unexpectedly empty even after Promise.allSettled handling.', { severityAssessment, potentialConditions });
       throw new Error('Received incomplete AI response from one or more services.');
     }
     
-    let doctorSpecialtySuggestion: SuggestDoctorSpecialtyOutput | undefined = undefined;
-    try {
-      doctorSpecialtySuggestion = await suggestDoctorSpecialty({ symptoms }); // Image not used for specialty suggestion
-      console.log('[aiActions] Successfully received doctorSpecialtySuggestion:', JSON.stringify(doctorSpecialtySuggestion, null, 2));
-    } catch (specialtyError) {
-      console.warn(`[aiActions] Failed to get doctor specialty suggestion for symptoms: "${symptoms}". Error:`, specialtyError);
-    }
-
     return { severityAssessment, potentialConditions, doctorSpecialtySuggestion };
+
   } catch (error) {
     console.error(`[aiActions] Error fetching AI response for symptoms: "${symptoms}". Details:`, error);
     
     let errorMessage = 'Failed to get AI insights. Please try again.';
     if (error instanceof Error) {
+      // Use the specific error message if available
       errorMessage = `Failed to get AI insights: ${error.message}. Check server logs for more details.`;
     }
     throw new Error(errorMessage);
@@ -89,6 +113,15 @@ export async function getAIFollowUpResponse(input: ClarificationInput): Promise<
     console.warn('[aiActions] getAIFollowUpResponse called with empty original symptoms or user question.');
     throw new Error('Original symptoms and user question cannot be empty for follow-up.');
   }
+   if (!input.currentSeverityAssessment || !input.currentPotentialConditions) {
+    console.warn('[aiActions] getAIFollowUpResponse called without current AI assessment context (severity or conditions).');
+    // Providing default empty objects for schemas if they are missing, though the prompt expects them.
+    // Ideally, the caller (AppLayoutClient) should ensure these are populated from `aiResponse`.
+    input.currentSeverityAssessment = input.currentSeverityAssessment || { severityAssessment: "Not available", nextStepsRecommendation: "Not available", questionsToConsider: []};
+    input.currentPotentialConditions = input.currentPotentialConditions || [];
+    // This indicates a potential logic error in the calling code if these are missing.
+  }
+
   console.log(`[aiActions] getAIFollowUpResponse initiated with: ${JSON.stringify(input, null, 2)}`);
   try {
     const clarificationResponse = await clarifySymptoms(input);

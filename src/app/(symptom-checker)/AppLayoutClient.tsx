@@ -8,13 +8,21 @@ import { PotentialConditionsDisplay } from './_components/PotentialConditionsDis
 import { DoctorMapSection } from './_components/DoctorMapSection';
 import { VisualFollowUpChoices } from './_components/VisualFollowUpChoices';
 import { RefinedDiagnosisDisplay } from './_components/RefinedDiagnosisDisplay';
-import { FollowUpSection, type ClarificationResponse } from './_components/FollowUpSection';
+import { FollowUpSection } from './_components/FollowUpSection'; // Will be updated to ChatSection essentially
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { getAIResponse, type FullAIResponse, refineDiagnosisWithVisual, getAIFollowUpResponse } from '@/actions/aiActions';
+import type { ClarificationOutput } from '@/ai/flows/clarificationFlow';
 import type { RefineDiagnosisOutput } from '@/ai/flows/refineDiagnosisWithVisualFlow';
 import { useToast } from '@/hooks/use-toast';
 import type { UserLocation } from '@/lib/geolocation';
 import { getUserLocation as fetchUserLocationUtil, DEFAULT_MELBOURNE_LOCATION } from '@/lib/geolocation';
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'ai';
+  text: string;
+  timestamp: Date;
+}
 
 export function AppLayoutClient() {
   const [isLoadingAI, setIsLoadingAI] = useState(false);
@@ -29,6 +37,9 @@ export function AppLayoutClient() {
   
   const [currentSymptoms, setCurrentSymptoms] = useState<string>('');
   const [currentImageDataUri, setCurrentImageDataUri] = useState<string | undefined>(undefined);
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isLoadingChatResponse, setIsLoadingChatResponse] = useState(false);
 
   const { toast } = useToast();
 
@@ -55,6 +66,7 @@ export function AppLayoutClient() {
     setIsLoadingAI(true);
     setAiResponse(null);
     setVisualFollowUpResult(null); 
+    setChatMessages([]); // Reset chat on new symptom submission
     setCurrentSymptoms(data.symptoms); 
     setSymptomsForDoctorSearch(data.symptoms);
 
@@ -78,11 +90,12 @@ export function AppLayoutClient() {
         imageDataUriSubmission = undefined;
       }
     }
-    setCurrentImageDataUri(imageDataUriSubmission); // Corrected: Was setCurrentImageDateUri
+    setCurrentImageDataUri(imageDataUriSubmission);
 
     try {
       const response = await getAIResponse(data.symptoms, imageDataUriSubmission);
       setAiResponse(response);
+      // Add initial AI summary to chat if needed, or wait for first user follow-up
     } catch (error) {
       toast({
         title: 'AI Analysis Error',
@@ -115,6 +128,12 @@ export function AppLayoutClient() {
         originalSymptoms: currentSymptoms,
       });
       setVisualFollowUpResult(result);
+      // Add refined diagnosis to chat history as an AI message
+      setChatMessages(prevMessages => [
+        ...prevMessages,
+        { id: Date.now().toString() + 'refined', role: 'ai', text: `Refined advice for ${selectedCondition}: ${result.refinedAdvice} ${result.confidence ? `(Confidence: ${result.confidence})` : ''}`, timestamp: new Date() }
+      ]);
+
     } catch (error) {
       toast({
         title: 'Refined AI Analysis Error',
@@ -126,26 +145,77 @@ export function AppLayoutClient() {
     }
   };
 
-  const handleFollowUpUpdate = (clarification: ClarificationResponse) => {
-    // Update main aiResponse if the follow-up provided new structured data
-    if (clarification.newSeverityAssessment || clarification.newPotentialConditions) {
-      setAiResponse(prev => {
-        if (!prev) return null; // Should not happen if FollowUpSection is visible
-        return {
-          ...prev,
-          severityAssessment: clarification.newSeverityAssessment || prev.severityAssessment,
-          potentialConditions: clarification.newPotentialConditions || prev.potentialConditions,
-        };
+  const handleSendChatMessage = async (userMessageText: string) => {
+    if (!currentSymptoms || !aiResponse) {
+      toast({ title: 'Error', description: 'Initial AI analysis is not available for follow-up.', variant: 'destructive'});
+      return;
+    }
+    if (!userMessageText.trim()) {
+      toast({ title: 'Empty Message', description: 'Please type your message.', variant: 'destructive' });
+      return;
+    }
+
+    const newUserMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      text: userMessageText,
+      timestamp: new Date()
+    };
+    setChatMessages(prevMessages => [...prevMessages, newUserMessage]);
+    setIsLoadingChatResponse(true);
+
+    try {
+      const clarificationResult: ClarificationOutput = await getAIFollowUpResponse({
+        originalSymptoms: currentSymptoms,
+        imageDataUri: currentImageDataUri,
+        currentSeverityAssessment: aiResponse.severityAssessment,
+        currentPotentialConditions: aiResponse.potentialConditions,
+        userQuestion: userMessageText,
       });
-      toast({title: "AI Insights Updated", description: "The AI has updated its assessment based on your follow-up."})
+
+      const aiChatMessage: ChatMessage = {
+        id: Date.now().toString() + 'ai',
+        role: 'ai',
+        text: clarificationResult.clarificationText,
+        timestamp: new Date()
+      };
+      setChatMessages(prevMessages => [...prevMessages, aiChatMessage]);
+
+      // Update main aiResponse if the follow-up provided new structured data
+      if (clarificationResult.updatedSeverityAssessment || clarificationResult.updatedPotentialConditions) {
+        setAiResponse(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            severityAssessment: clarificationResult.updatedSeverityAssessment || prev.severityAssessment,
+            potentialConditions: clarificationResult.updatedPotentialConditions || prev.potentialConditions,
+            // Note: Doctor specialty is not updated in this iteration.
+          };
+        });
+        toast({title: "AI Insights Updated", description: "The AI has updated its assessment based on your chat."});
+      }
+
+    } catch (error) {
+      const errorMessage = (error as Error).message || 'Failed to get AI follow-up response.';
+      toast({ title: 'Chat Error', description: errorMessage, variant: 'destructive' });
+      const errorAiMessage: ChatMessage = {
+        id: Date.now().toString() + 'aiError',
+        role: 'ai',
+        text: `Sorry, I encountered an error: ${errorMessage}`,
+        timestamp: new Date()
+      };
+      setChatMessages(prevMessages => [...prevMessages, errorAiMessage]);
+    } finally {
+      setIsLoadingChatResponse(false);
     }
   };
 
+
   return (
     <div className="flex flex-col items-center w-full space-y-8">
-      <SymptomForm onSubmit={handleSymptomSubmit} isLoading={isLoadingAI || isLoadingVisualFollowUp} />
+      <SymptomForm onSubmit={handleSymptomSubmit} isLoading={isLoadingAI || isLoadingVisualFollowUp || isLoadingChatResponse} />
 
-      {(isLoadingAI || isLoadingVisualFollowUp) && (
+      {(isLoadingAI || isLoadingVisualFollowUp) && !isLoadingChatResponse && ( // Don't show this spinner if chat is loading
         <div className="mt-8 text-center">
           <LoadingSpinner size={48} />
           <p className="text-muted-foreground mt-2">
@@ -174,15 +244,12 @@ export function AppLayoutClient() {
           {visualFollowUpResult && !isLoadingVisualFollowUp && (
             <RefinedDiagnosisDisplay result={visualFollowUpResult} />
           )}
-
-          {!isLoadingVisualFollowUp && ( // Show follow-up section after initial analysis & if not in visual follow-up loading state
-            <FollowUpSection
-              originalSymptoms={currentSymptoms}
-              originalImageDataUri={currentImageDataUri}
-              currentAIResponse={aiResponse}
-              onFollowUpUpdate={handleFollowUpUpdate}
-            />
-          )}
+          
+          <FollowUpSection
+            chatMessages={chatMessages}
+            onSendMessage={handleSendChatMessage}
+            isLoading={isLoadingChatResponse}
+          />
           
           <DoctorMapSection 
             userLocation={userLocation} 
@@ -197,3 +264,4 @@ export function AppLayoutClient() {
     </div>
   );
 }
+
