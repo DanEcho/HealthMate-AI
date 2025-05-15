@@ -4,13 +4,14 @@ import { Header } from './Header';
 
 interface AppShellProps {
   children: ReactNode;
-  headerLeftAction?: ReactNode; // Prop to pass an element to the Header's left side
+  headerLeftAction?: ReactNode; 
+  onNavigateHome?: () => void; // New prop for handling home navigation
 }
 
-export function AppShell({ children, headerLeftAction }: AppShellProps) {
+export function AppShell({ children, headerLeftAction, onNavigateHome }: AppShellProps) {
   return (
     <div className="flex flex-col min-h-screen">
-      <Header headerLeftAction={headerLeftAction} />
+      <Header headerLeftAction={headerLeftAction} onNavigateHome={onNavigateHome} />
       <main className="flex-grow container mx-auto px-4 py-8">
         {children}
       </main>

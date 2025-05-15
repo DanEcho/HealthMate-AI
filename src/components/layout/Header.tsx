@@ -4,25 +4,32 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { MapIcon, Stethoscope, HomeIcon, LogIn, LogOut, UserPlus } from 'lucide-react'; // PanelLeft removed, it's passed via prop
+import { MapIcon, Stethoscope, HomeIcon, LogIn, LogOut, UserPlus } from 'lucide-react'; 
 import { useAuth } from '@/context/AuthContext';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
 interface HeaderProps {
-  headerLeftAction?: ReactNode; // To accept the chat history button
+  headerLeftAction?: ReactNode; 
+  onNavigateHome?: () => void; // New prop
 }
 
-export function Header({ headerLeftAction }: HeaderProps) {
+export function Header({ headerLeftAction, onNavigateHome }: HeaderProps) {
   const { user, loading, logout } = useAuth();
+
+  const handleHomeClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (onNavigateHome) {
+      onNavigateHome();
+    }
+    // Allow Link's default navigation to proceed
+  };
 
   return (
     <header className="sticky top-0 z-[1000] w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90">
       <div className="container flex h-16 items-center justify-between text-neutral-800">
         <div className="flex items-center gap-2">
-          {/* Render the passed action button (Chat History Trigger) on the far left */}
           {headerLeftAction}
 
-          <Link href="/" passHref>
+          <Link href="/" passHref onClick={handleHomeClick}>
             <Button size="sm" className="flex items-center gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
               <HomeIcon className="h-4 w-4" />
               <span>Home</span>
@@ -36,7 +43,7 @@ export function Header({ headerLeftAction }: HeaderProps) {
           </Link>
         </div>
         
-        <Link href="/" className="flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
+        <Link href="/" className="flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2" onClick={handleHomeClick}>
           <Stethoscope className="h-7 w-7 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight text-neutral-800">
             HealthAssist AI
