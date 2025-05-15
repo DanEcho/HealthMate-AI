@@ -22,7 +22,7 @@ export type SymptomFormData = z.infer<typeof formSchema>;
 interface SymptomFormProps {
   onSubmit: SubmitHandler<SymptomFormData>;
   isLoading: boolean;
-  currentSymptoms?: string; 
+  currentSymptoms?: string;
 }
 
 export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFormProps) {
@@ -88,9 +88,9 @@ export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFor
             <FormField
               control={form.control}
               name="image"
-              render={() => ( 
-                <FormItem className="p-6 rounded-xl border bg-card shadow-md"> {/* Reverted to bg-card */}
-                  <FormLabel htmlFor="image-upload" className="text-sm font-medium text-card-foreground flex items-center gap-2 cursor-pointer"> {/* Adjusted text color */}
+              render={() => (
+                <FormItem className="p-6 rounded-xl border bg-card shadow-md min-h-[150px] flex flex-col justify-center">
+                  <FormLabel htmlFor="image-upload" className="text-sm font-medium text-card-foreground flex items-center gap-2 cursor-pointer">
                     <ImagePlus className="h-5 w-5 text-muted-foreground" />
                     Upload an Image (Optional)
                   </FormLabel>
@@ -99,16 +99,16 @@ export function SymptomForm({ onSubmit, isLoading, currentSymptoms }: SymptomFor
                         id="image-upload"
                         type="file"
                         accept="image/*"
-                        onChange={handleFileChange} 
+                        onChange={handleFileChange}
                         className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer mt-2"
                       />
                   </FormControl>
-                  {fileName && <FormDescription className="mt-2 text-xs text-muted-foreground">Selected file: {fileName}</FormDescription>} {/* Adjusted text color */}
+                  {fileName && <FormDescription className="mt-2 text-xs text-muted-foreground">Selected file: {fileName}</FormDescription>}
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <Button type="submit" disabled={isLoading} className="w-full text-lg py-6 bg-primary hover:bg-primary/90">
               {isLoading ? (
                 'Analyzing...'
