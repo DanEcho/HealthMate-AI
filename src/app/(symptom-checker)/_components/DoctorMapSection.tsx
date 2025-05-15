@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+// No local useState for showDoctors needed here anymore
 import { Button } from '@/components/ui/button';
 import { DynamicMapComponent, type MapMarker } from '@/components/common/MapComponent';
 import type { UserLocation } from '@/lib/geolocation';
@@ -13,11 +13,12 @@ import { DoctorCard } from './DoctorCard';
 
 interface DoctorMapSectionProps {
   userLocation: UserLocation | null;
-  onLocateDoctors: () => void;
+  onLocateDoctors: () => void; // This will be called when the button is clicked
   isLocatingDoctors: boolean;
-  symptoms?: string; // Still useful for map context if we enhance map search later
+  symptoms?: string; 
   isDefaultLocationUsed: boolean;
   aiSuggestedSpecialty?: SuggestDoctorSpecialtyOutput;
+  isVisible: boolean; // New prop to control visibility from parent
 }
 
 export function DoctorMapSection({
@@ -27,8 +28,9 @@ export function DoctorMapSection({
   symptoms,
   isDefaultLocationUsed,
   aiSuggestedSpecialty,
+  isVisible, // Use this prop
 }: DoctorMapSectionProps) {
-  const [showDoctors, setShowDoctors] = useState(false); // Renamed from showMap for clarity
+  // const [showDoctors, setShowDoctors] = useState(false); // Removed local state
 
   // Enhanced Mock Doctors Data
   const MOCK_DOCTORS: MapMarker[] = userLocation ? [
@@ -80,7 +82,7 @@ export function DoctorMapSection({
       id: 'doc5',
       position: { lat: userLocation.lat - 0.01, lng: userLocation.lng + 0.005 },
       title: 'Eastside Physiotherapy & Sports Injury',
-      type: 'doctor', // Using 'doctor' type broadly for health professionals
+      type: 'doctor', 
       specialty: 'Physiotherapist',
       distance: '1.8 km',
       website: 'https://example.com/eastsidephysio',
@@ -89,10 +91,11 @@ export function DoctorMapSection({
     }
   ] : [];
 
-  const handleShowDoctorsClick = () => {
-    onLocateDoctors(); 
-    setShowDoctors(true);
-  };
+  // handleShowDoctorsClick is now just onLocateDoctors from props
+  // const handleShowDoctorsClick = () => {
+  //   onLocateDoctors(); 
+  //   // setShowDoctors(true); // Parent (AppLayoutClient) will manage visibility
+  // };
 
   const AIsuggestedSpecialtyCleaned = aiSuggestedSpecialty?.suggestedSpecialty?.toLowerCase().trim();
 
@@ -103,7 +106,7 @@ export function DoctorMapSection({
           <ListTree className="h-6 w-6 text-accent" />
           <CardTitle className="text-2xl font-semibold">Find Nearby Medical Professionals</CardTitle>
         </div>
-        {isDefaultLocationUsed && showDoctors && (
+        {isDefaultLocationUsed && isVisible && ( // Show warning if map is visible and location is default
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground bg-secondary p-3 rounded-md">
             <InfoIcon className="h-5 w-5 text-primary" />
             <span>Showing professionals for a default location in Melbourne as your precise location could not be determined.</span>
@@ -111,19 +114,19 @@ export function DoctorMapSection({
         )}
       </CardHeader>
       <CardContent className="space-y-6">
-        {!showDoctors && (
+        {!isVisible && ( // Use isVisible prop here
           <div className="text-center">
             <p className="mb-4 text-muted-foreground">
               See a map and list of medical professionals near you.
             </p>
-            <Button onClick={handleShowDoctorsClick} disabled={isLocatingDoctors} className="bg-accent hover:bg-accent/90">
+            <Button onClick={onLocateDoctors} disabled={isLocatingDoctors} className="bg-accent hover:bg-accent/90">
               {isLocatingDoctors ? <LoadingSpinner size={20} className="mr-2" /> : <MapPin className="mr-2 h-5 w-5" />}
               {isLocatingDoctors ? 'Locating...' : 'Show Nearby Professionals'}
             </Button>
           </div>
         )}
         
-        {showDoctors && (
+        {isVisible && ( // Use isVisible prop here
           <>
             {isLocatingDoctors && !userLocation && <div className="text-center py-4"><LoadingSpinner size={32} /><p className="text-muted-foreground mt-2">Locating...</p></div>}
 

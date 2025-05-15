@@ -38,6 +38,7 @@ export interface ChatSession {
   aiResponse: FullAIResponse | null;
   visualFollowUpResult: RefineDiagnosisOutput | null;
   chatMessages: ChatMessage[];
+  isDoctorMapSectionVisible?: boolean; // Added to save map visibility state
 }
 
 const LOCAL_STORAGE_KEY = 'HEALTH_ASSIST_CHAT_SESSIONS_V1';
@@ -51,9 +52,10 @@ export function AppLayoutClient() {
   const [currentImageDataUri, setCurrentImageDataUri] = useState<string | undefined>(undefined);
 
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const [isLocating, setIsLocating] = useState(false);
+  const [isLocatingDoctorsMap, setIsLocatingDoctorsMap] = useState(false); // Renamed for clarity
   const [symptomsForDoctorSearch, setSymptomsForDoctorSearch] = useState<string | undefined>(undefined);
   const [isDefaultLocationUsed, setIsDefaultLocationUsed] = useState(false);
+  const [isDoctorMapSectionVisible, setIsDoctorMapSectionVisible] = useState(false); // Controls DoctorMapSection content visibility
 
   const [isLoadingVisualFollowUp, setIsLoadingVisualFollowUp] = useState(false);
   const [isLoadingChatResponse, setIsLoadingChatResponse] = useState(false);
@@ -78,10 +80,7 @@ export function AppLayoutClient() {
   }, [toast]);
 
   useEffect(() => {
-    // Save sessions whenever chatSessions or activeSessionId changes
-    // (activeSessionId is included to ensure any updates to the active session's title get persisted if it's based on active state)
-    // However, primarily chatSessions is the trigger.
-    if (chatSessions.length > 0 || localStorage.getItem(LOCAL_STORAGE_KEY) !== null) { // Avoid writing empty array if nothing was loaded
+    if (chatSessions.length > 0 || localStorage.getItem(LOCAL_STORAGE_KEY) !== null) { 
       try {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(chatSessions));
       } catch (error) {
@@ -99,16 +98,22 @@ export function AppLayoutClient() {
     );
   }, [activeSessionId]);
 
-  const resetCurrentInteractionState = () => {
+  const resetCurrentInteractionState = (keepSymptomsAndImage: boolean = false) => {
     setAiResponse(null);
     setVisualFollowUpResult(null);
     setChatMessages([]);
-    setCurrentSymptomsInput('');
-    setCurrentImageDataUri(undefined);
-    setSymptomsForDoctorSearch(undefined);
+    if (!keepSymptomsAndImage) {
+      setCurrentSymptomsInput('');
+      setCurrentImageDataUri(undefined);
+    }
+    setSymptomsForDoctorSearch(keepSymptomsAndImage ? currentSymptomsInput : undefined);
+    setIsDoctorMapSectionVisible(false); // Reset map visibility
+    
+    // Reset loading states, but userLocation and defaultLocationUsed are generally persistent unless explicitly re-fetched
     setIsLoadingAI(false);
     setIsLoadingVisualFollowUp(false);
     setIsLoadingChatResponse(false);
+    // setIsLocatingDoctorsMap might also be reset here if desired, or managed by its own flow.
   };
   
   const getSessionTitle = (session: Partial<ChatSession>): string => {
@@ -121,17 +126,18 @@ export function AppLayoutClient() {
   };
 
   const startNewSession = () => {
-    resetCurrentInteractionState();
+    resetCurrentInteractionState(); // Full reset
     setActiveSessionId(null); 
     toast({ title: "New Chat Started", description: "Please enter your symptoms." });
   };
 
-  const loadSession = (sessionId: string) => {
+  const loadSession = async (sessionId: string) => {
     const sessionToLoad = chatSessions.find(s => s.id === sessionId);
     if (sessionToLoad) {
       setIsLoadingAI(false);
       setIsLoadingVisualFollowUp(false);
       setIsLoadingChatResponse(false);
+      setIsLocatingDoctorsMap(false);
       
       setActiveSessionId(sessionToLoad.id);
       setCurrentSymptomsInput(sessionToLoad.currentSymptoms);
@@ -140,6 +146,15 @@ export function AppLayoutClient() {
       setVisualFollowUpResult(sessionToLoad.visualFollowUpResult);
       setChatMessages(sessionToLoad.chatMessages.map(m => ({ ...m, timestamp: new Date(m.timestamp) })));
       setSymptomsForDoctorSearch(sessionToLoad.currentSymptoms);
+      setIsDoctorMapSectionVisible(sessionToLoad.isDoctorMapSectionVisible || false);
+
+      // If map was visible, try to re-establish location for map rendering
+      if (sessionToLoad.isDoctorMapSectionVisible) {
+        await fetchUserLocation(); // Re-fetch or use default to populate userLocation
+      } else {
+        setUserLocation(null); // Clear location if map wasn't shown in that session
+        setIsDefaultLocationUsed(false);
+      }
 
       toast({ title: "Chat Loaded", description: `Switched to chat: ${getSessionTitle(sessionToLoad)}` });
     } else {
@@ -156,15 +171,10 @@ export function AppLayoutClient() {
   };
 
   const handleSymptomSubmit = async (data: SymptomFormData) => {
-    // Reset parts of state for a new analysis, but keep chat history panel state
-    setAiResponse(null);
-    setVisualFollowUpResult(null);
-    setChatMessages([]);
-    // setCurrentSymptomsInput and setCurrentImageDataUri will be set below
-    setSymptomsForDoctorSearch(data.symptoms); 
-    
+    resetCurrentInteractionState(true); // Keep symptoms & image in form, reset AI/map states
     setIsLoadingAI(true);
     setCurrentSymptomsInput(data.symptoms);
+    setSymptomsForDoctorSearch(data.symptoms);
 
     let processedImageDataUri: string | undefined = undefined;
     if (data.image && data.image.length > 0) {
@@ -177,77 +187,73 @@ export function AppLayoutClient() {
           reader.readAsDataURL(file);
         });
         setCurrentImageDataUri(processedImageDataUri);
-        toast({ title: 'Image Processing', description: 'Image ready for analysis.' });
       } catch (error) {
-        toast({
-          title: 'Image Error',
-          description: (error as Error).message || 'Could not process image.',
-          variant: 'destructive',
-        });
-        processedImageDataUri = undefined; // Ensure it's undefined on error
+        toast({ title: 'Image Error', description: (error as Error).message || 'Could not process image.', variant: 'destructive'});
+        processedImageDataUri = undefined; 
         setCurrentImageDataUri(undefined);
       }
     } else {
-      setCurrentImageDataUri(undefined); // Ensure it's undefined if no image
+      setCurrentImageDataUri(undefined); 
     }
 
     const newSessionId = `session_${Date.now()}`;
-    // Create the session object that will be stored
     let newSessionObject: ChatSession = {
       id: newSessionId,
       timestamp: new Date().toISOString(),
       currentSymptoms: data.symptoms,
       currentImageDataUri: processedImageDataUri,
-      aiResponse: null, // Will be filled after API call
+      aiResponse: null, 
       visualFollowUpResult: null,
       chatMessages: [],
-      title: getSessionTitle({ currentSymptoms: data.symptoms, timestamp: new Date().toISOString() }) // Generate initial title
+      isDoctorMapSectionVisible: false, // Initialize map visibility
+      title: getSessionTitle({ currentSymptoms: data.symptoms, timestamp: new Date().toISOString() })
     };
 
     try {
       const response = await getAIResponse(data.symptoms, processedImageDataUri);
-      newSessionObject.aiResponse = response; // Populate AI response in the session object
-      newSessionObject.title = getSessionTitle(newSessionObject); // Update title if it depends on AI response
+      newSessionObject.aiResponse = response; 
+      newSessionObject.title = getSessionTitle(newSessionObject);
 
-      setAiResponse(response); // Update local state for immediate UI update
-      
-      // Add the fully populated session and set it active
+      setAiResponse(response);
       setChatSessions(prevSessions => [newSessionObject, ...prevSessions.filter(s => s.id !== newSessionId).slice(0, 19)]);
       setActiveSessionId(newSessionId);
 
     } catch (error) {
-      toast({
-        title: 'AI Analysis Error',
-        description: (error as Error).message || 'Failed to get AI response.',
-        variant: 'destructive',
-      });
-      // Even on error, save the session attempt so user knows what they input
+      toast({ title: 'AI Analysis Error', description: (error as Error).message || 'Failed to get AI response.', variant: 'destructive'});
       setChatSessions(prevSessions => [newSessionObject, ...prevSessions.filter(s => s.id !== newSessionId).slice(0, 19)]);
       setActiveSessionId(newSessionId);
-      setAiResponse(null); // Ensure local state is null
+      setAiResponse(null); 
     } finally {
       setIsLoadingAI(false);
     }
   };
-
+  
   const handleLocateDoctors = async () => {
-    await fetchUserLocation();
+    await fetchUserLocation(); // This sets userLocation and isDefaultLocationUsed
+    setIsDoctorMapSectionVisible(true); // Show the map section
+    if (activeSessionId) {
+      updateActiveSession(session => ({
+        ...session,
+        isDoctorMapSectionVisible: true,
+      }));
+    }
   };
+
 
   const handleVisualChoiceSelected = async (selectedCondition: string) => {
     const activeSession = chatSessions.find(s => s.id === activeSessionId);
-    if (!activeSession || !activeSession.currentSymptoms) { // Check currentSymptoms for context
+    if (!activeSession || !activeSession.currentSymptoms) { 
       toast({ title: 'Error', description: 'Active session or original symptoms not found.', variant: 'destructive' });
       return;
     }
     setIsLoadingVisualFollowUp(true);
-    setVisualFollowUpResult(null); // Reset previous visual result for the current UI
+    setVisualFollowUpResult(null);
     try {
       const result = await refineDiagnosisWithVisual({
         selectedCondition,
         originalSymptoms: activeSession.currentSymptoms,
       });
-      setVisualFollowUpResult(result); // Update local state
+      setVisualFollowUpResult(result); 
 
       const aiMessageForChat: ChatMessage = {
         id: Date.now().toString() + 'refined',
@@ -256,10 +262,7 @@ export function AppLayoutClient() {
         timestamp: new Date()
       };
       
-      // Add to local chat messages state
       setChatMessages(prev => [...prev, aiMessageForChat]);
-
-      // Update the session in chatSessions array
       updateActiveSession(session => ({
         ...session,
         visualFollowUpResult: result,
@@ -285,7 +288,7 @@ export function AppLayoutClient() {
     }
 
     const newUserMessage: ChatMessage = { id: Date.now().toString(), role: 'user', text: userMessageText, timestamp: new Date() };
-    setChatMessages(prev => [...prev, newUserMessage]); // Update local state immediately
+    setChatMessages(prev => [...prev, newUserMessage]); 
     setIsLoadingChatResponse(true);
 
     updateActiveSession(session => ({
@@ -303,22 +306,22 @@ export function AppLayoutClient() {
       });
 
       const aiChatMessage: ChatMessage = { id: Date.now().toString() + 'ai', role: 'ai', text: clarificationResult.clarificationText, timestamp: new Date() };
-      setChatMessages(prev => [...prev, aiChatMessage]); // Update local state
+      setChatMessages(prev => [...prev, aiChatMessage]); 
 
       let updatedAiResponseForSession = activeSession.aiResponse;
       if (clarificationResult.updatedSeverityAssessment || clarificationResult.updatedPotentialConditions) {
         updatedAiResponseForSession = {
-          ...(activeSession.aiResponse!), // Non-null assertion, as we checked above
+          ...(activeSession.aiResponse!), 
           severityAssessment: clarificationResult.updatedSeverityAssessment || activeSession.aiResponse!.severityAssessment,
           potentialConditions: clarificationResult.updatedPotentialConditions || activeSession.aiResponse!.potentialConditions,
         };
-        setAiResponse(updatedAiResponseForSession); // Update local state for current display
+        setAiResponse(updatedAiResponseForSession); 
         toast({ title: "AI Insights Updated", description: "The AI has updated its assessment based on your chat." });
       }
 
       updateActiveSession(session => ({
         ...session,
-        aiResponse: updatedAiResponseForSession, // Persist updated AI response to session
+        aiResponse: updatedAiResponseForSession, 
         chatMessages: [...(session.chatMessages || []), aiChatMessage],
       }));
 
@@ -338,7 +341,7 @@ export function AppLayoutClient() {
   };
 
   const fetchUserLocation = async () => {
-    setIsLocating(true);
+    setIsLocatingDoctorsMap(true);
     setIsDefaultLocationUsed(false);
     try {
       const location = await fetchUserLocationUtil();
@@ -352,17 +355,17 @@ export function AppLayoutClient() {
         variant: 'destructive',
       });
     } finally {
-      setIsLocating(false);
+      setIsLocatingDoctorsMap(false);
     }
   };
   
   const chatHistoryTrigger = (
     <Button
-      variant="ghost" // Changed from outline for better blending if header has complex bg
+      variant="ghost"
       size="icon" 
       onClick={() => setIsHistoryPanelOpen(true)}
       aria-label="View chat history"
-      className="bg-accent text-accent-foreground hover:bg-accent/90" // Consistent light green
+      className="bg-accent text-accent-foreground hover:bg-accent/90"
     >
       <PanelLeft className="h-5 w-5" />
     </Button>
@@ -390,7 +393,7 @@ export function AppLayoutClient() {
           </div>
         )}
         
-        {activeSessionId && currentImageDataUri && !isLoadingAI && ( // Display image if URI exists and not loading
+        {activeSessionId && currentImageDataUri && !isLoadingAI && (
           <div className="w-full max-w-md mx-auto my-4 p-2 border rounded-lg shadow-md bg-card">
             <h3 className="text-sm font-medium text-card-foreground mb-2 text-center">Symptom Image Provided:</h3>
             <Image
@@ -438,10 +441,11 @@ export function AppLayoutClient() {
             <DoctorMapSection
               userLocation={userLocation}
               onLocateDoctors={handleLocateDoctors}
-              isLocatingDoctors={isLocating}
+              isLocatingDoctors={isLocatingDoctorsMap} // Use renamed state
               symptoms={symptomsForDoctorSearch}
               isDefaultLocationUsed={isDefaultLocationUsed}
               aiSuggestedSpecialty={aiResponse.doctorSpecialtySuggestion}
+              isVisible={isDoctorMapSectionVisible} // Pass visibility state
             />
           </div>
         )}
