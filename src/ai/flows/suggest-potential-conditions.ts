@@ -8,12 +8,16 @@ import {z} from 'genkit';
 
 const SuggestPotentialConditionsInputSchema = z.object({
   symptoms: z.string().describe('The symptoms described by the user.'),
+  imageDataUri: z
+    .string()
+    .optional()
+    .describe("An optional image of the symptom or injury, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
 });
 export type SuggestPotentialConditionsInput = z.infer<typeof SuggestPotentialConditionsInputSchema>;
 
 const SuggestedConditionSchema = z.object({
   condition: z.string().describe('The name of the potential medical condition.'),
-  explanation: z.string().describe('A concise explanation of the condition and its relevance to the symptoms.'),
+  explanation: z.string().describe('A concise explanation of the condition and its relevance to the symptoms and image (if provided).'),
   distinguishingSymptoms: z.array(z.string()).describe('Up to 3 key symptoms that help distinguish this condition, especially from other conditions that might present similarly based on the initial user input. Be concise.'),
 });
 
@@ -29,22 +33,26 @@ const suggestPotentialConditionsPrompt = ai.definePrompt({
   input: {schema: SuggestPotentialConditionsInputSchema},
   output: {schema: SuggestPotentialConditionsOutputSchema},
   prompt: `You are a medical AI assistant. A user has described the following symptoms: {{{symptoms}}}.
-Based on these symptoms, suggest a list of potential medical conditions that could be related.
-For each condition, provide:
-1.  "condition": The name of the potential medical condition (string).
-2.  "explanation": A concise explanation of the condition and its relevance to the symptoms (string).
-3.  "distinguishingSymptoms": An array of up to 3 key symptoms (strings) that help distinguish this condition from others that might present similarly based on the initial user input. Be concise.
+  {{#if imageDataUri}}
+  They have also provided an image related to their symptoms:
+  {{media url=imageDataUri}}
+  {{/if}}
+  Based on all this information, suggest a list of potential medical conditions that could be related.
+  For each condition, provide:
+  1.  "condition": The name of the potential medical condition (string).
+  2.  "explanation": A concise explanation of the condition and its relevance to the symptoms, also mentioning how the image (if provided) aligns or contributes to this thought (string).
+  3.  "distinguishingSymptoms": An array of up to 3 key symptoms (strings) that help distinguish this condition from others that might present similarly based on the initial user input. Be concise.
 
-Return your response *only* as a JSON array of objects. Each object in the array must adhere to this structure.
-Example of a single object:
-{
-  "condition": "Common Cold",
-  "explanation": "A viral infection of the upper respiratory tract, often causing runny nose, sore throat, and cough, which aligns with some of the reported symptoms.",
-  "distinguishingSymptoms": ["Runny or stuffy nose", "Mild body aches", "Sneezing"]
-}
-Prioritize conditions that are most likely to be related to the symptoms. Limit your response to the top 3 most relevant potential conditions.
-Ensure your entire output strictly adheres to this JSON array format and the specified object structure.
-`,
+  Return your response *only* as a JSON array of objects. Each object in the array must adhere to this structure.
+  Example of a single object:
+  {
+    "condition": "Common Cold",
+    "explanation": "A viral infection of the upper respiratory tract, often causing runny nose, sore throat, and cough, which aligns with some of the reported symptoms. If an image was provided showing a red throat, this would be consistent.",
+    "distinguishingSymptoms": ["Runny or stuffy nose", "Mild body aches", "Sneezing"]
+  }
+  Prioritize conditions that are most likely to be related to the symptoms and image (if any). Limit your response to the top 3 most relevant potential conditions.
+  Ensure your entire output strictly adheres to this JSON array format and the specified object structure.
+  `,
   config: {
     safetySettings: [
       {
@@ -97,7 +105,6 @@ const suggestPotentialConditionsFlow = ai.defineFlow(
         throw new Error('AI failed to suggest potential conditions. The model response was empty or did not conform to the expected output structure.');
       }
       
-      // Validate that distinguishingSymptoms is an array, even if empty.
       for (const condition of result.output) {
         if (!Array.isArray(condition.distinguishingSymptoms)) {
           console.warn(`[suggestPotentialConditionsFlow] Condition "${condition.condition}" missing 'distinguishingSymptoms' array, setting to empty. Output was: ${JSON.stringify(condition, null, 2)}`);
@@ -114,4 +121,3 @@ const suggestPotentialConditionsFlow = ai.defineFlow(
     }
   }
 );
-

@@ -17,18 +17,18 @@ export interface FullAIResponse extends AIResponse {
   doctorSpecialtySuggestion?: SuggestDoctorSpecialtyOutput;
 }
 
-export async function getAIResponse(symptoms: string): Promise<FullAIResponse> {
+export async function getAIResponse(symptoms: string, imageDataUri?: string): Promise<FullAIResponse> {
   if (!symptoms.trim()) {
     console.warn('[aiActions] getAIResponse called with empty symptoms.');
     throw new Error('Symptoms cannot be empty.');
   }
 
-  console.log(`[aiActions] getAIResponse initiated with symptoms: "${symptoms}"`);
+  console.log(`[aiActions] getAIResponse initiated with symptoms: "${symptoms}" ${imageDataUri ? 'and an image.' : 'without an image.'}`);
 
   try {
     const [severityAssessment, potentialConditions] = await Promise.all([
-      assessSymptomSeverity({ symptoms }),
-      suggestPotentialConditions({ symptoms }),
+      assessSymptomSeverity({ symptoms, imageDataUri }),
+      suggestPotentialConditions({ symptoms, imageDataUri }),
     ]);
 
     console.log('[aiActions] Successfully received severityAssessment:', JSON.stringify(severityAssessment, null, 2));
@@ -41,11 +41,11 @@ export async function getAIResponse(symptoms: string): Promise<FullAIResponse> {
     
     let doctorSpecialtySuggestion: SuggestDoctorSpecialtyOutput | undefined = undefined;
     try {
+      // Doctor specialty suggestion currently doesn't use the image, only symptoms.
       doctorSpecialtySuggestion = await suggestDoctorSpecialty({ symptoms });
       console.log('[aiActions] Successfully received doctorSpecialtySuggestion:', JSON.stringify(doctorSpecialtySuggestion, null, 2));
     } catch (specialtyError) {
       console.warn(`[aiActions] Failed to get doctor specialty suggestion for symptoms: "${symptoms}". Error:`, specialtyError);
-      // Non-critical, so we don't throw the main error if this one fails. It will be undefined.
     }
 
     return { severityAssessment, potentialConditions, doctorSpecialtySuggestion };
@@ -61,6 +61,8 @@ export async function getAIResponse(symptoms: string): Promise<FullAIResponse> {
 }
 
 export async function refineDiagnosisWithVisual(input: RefineDiagnosisInput): Promise<RefineDiagnosisOutput> {
+  // Note: This flow currently does not re-use an image from the initial step unless explicitly modified to do so.
+  // It focuses on refining based on a selected condition text.
   if (!input.originalSymptoms.trim() || !input.selectedCondition.trim()) {
     console.warn('[aiActions] refineDiagnosisWithVisual called with empty symptoms or condition.');
     throw new Error('Original symptoms and selected condition cannot be empty.');

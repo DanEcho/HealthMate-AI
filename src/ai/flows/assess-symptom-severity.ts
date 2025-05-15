@@ -2,9 +2,9 @@
 'use server';
 
 /**
- * @fileOverview Assesses the severity of symptoms provided by the user.
+ * @fileOverview Assesses the severity of symptoms provided by the user, optionally with an image.
  *
- * - assessSymptomSeverity - A function that takes user-reported symptoms and returns an AI assessment of the potential severity of the condition.
+ * - assessSymptomSeverity - A function that takes user-reported symptoms (and optionally an image) and returns an AI assessment of potential severity and questions to consider.
  * - AssessSymptomSeverityInput - The input type for the assessSymptomSeverity function.
  * - AssessSymptomSeverityOutput - The return type for the assessSymptomSeverity function.
  */
@@ -16,6 +16,10 @@ const AssessSymptomSeverityInputSchema = z.object({
   symptoms: z
     .string()
     .describe('The symptoms reported by the user, described in their own words.'),
+  imageDataUri: z
+    .string()
+    .optional()
+    .describe("An optional image of the symptom or injury, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
 });
 export type AssessSymptomSeverityInput = z.infer<typeof AssessSymptomSeverityInputSchema>;
 
@@ -23,13 +27,16 @@ const AssessSymptomSeverityOutputSchema = z.object({
   severityAssessment: z
     .string()
     .describe(
-      'An AI assessment of the potential severity of the condition based on the symptoms provided.'
+      'An AI-generated perspective on the potential seriousness of the condition based on the symptoms and image (if provided). This is not a diagnosis.'
     ),
   nextStepsRecommendation: z
     .string()
     .describe(
-      'Recommendation for the user, on what to do next, based on the severity assessment. Should include a suggestion to seek professional medical advice if needed.'
+      'Recommendations for the user on what to do next, based on the severity assessment. Should emphasize consulting a healthcare professional.'
     ),
+  questionsToConsider: z.array(z.string()).optional().describe(
+    "A list of questions a healthcare professional might ask, or points the user should consider observing further about their symptoms."
+  ),
 });
 export type AssessSymptomSeverityOutput = z.infer<typeof AssessSymptomSeverityOutputSchema>;
 
@@ -41,16 +48,22 @@ const assessSymptomSeverityPrompt = ai.definePrompt({
   name: 'assessSymptomSeverityPrompt',
   input: {schema: AssessSymptomSeverityInputSchema},
   output: {schema: AssessSymptomSeverityOutputSchema},
-  prompt: `You are an AI-powered health assistant. Your task is to analyze user-reported symptoms.
-  Based on these symptoms, you must return a JSON object with exactly two keys:
-  1. "severityAssessment": A string describing the potential severity of the condition.
-  2. "nextStepsRecommendation": A string containing actionable next steps for the user.
+  prompt: `You are an AI-powered health assistant. Your task is to analyze user-reported symptoms and any provided image.
+  Your response should be consultative, not a definitive diagnosis.
+  Based on this information, you must return a JSON object with:
+  1. "severityAssessment": A string providing a perspective on the potential seriousness. Use cautious language like "The described symptoms might suggest..." or "It could be helpful to consider..."
+  2. "nextStepsRecommendation": A string containing actionable next steps. Always prioritize professional medical advice.
+  3. "questionsToConsider": An optional array of strings. These should be pertinent questions a doctor might ask, or things the user could observe more closely (e.g., "Does the pain change with activity?", "Have you noticed any swelling?").
 
-  If the symptoms appear severe, your "nextStepsRecommendation" must strongly advise seeking professional medical attention, including visiting a doctor or emergency services as appropriate.
+  If the symptoms appear potentially serious, your "nextStepsRecommendation" must strongly advise seeking professional medical attention.
   Focus on providing clear, helpful, and responsible information. Ensure your entire response is a single, valid JSON object adhering to this structure.
 
   User Symptoms:
   {{{symptoms}}}
+  {{#if imageDataUri}}
+  Visual Information Provided:
+  {{media url=imageDataUri}}
+  {{/if}}
   `,
   config: {
     safetySettings: [
@@ -105,11 +118,15 @@ const assessSymptomSeverityFlow = ai.defineFlow(
         throw new Error('AI failed to generate severity assessment. The model response was empty or did not conform to the expected output structure.');
       }
       
-      // Zod parsing is handled by Genkit, but an explicit check for key fields can be useful for debugging.
       if (typeof result.output.severityAssessment !== 'string' || typeof result.output.nextStepsRecommendation !== 'string') {
         console.error(`[assessSymptomSeverityFlow] AI output is missing required fields or has incorrect types. Output: ${JSON.stringify(result.output, null, 2)}`);
         throw new Error('AI response for severity assessment is incomplete or malformed.');
       }
+      if (result.output.questionsToConsider && !Array.isArray(result.output.questionsToConsider)) {
+        console.warn(`[assessSymptomSeverityFlow] 'questionsToConsider' is not an array, setting to empty. Output was: ${JSON.stringify(result.output.questionsToConsider, null, 2)}`);
+        result.output.questionsToConsider = [];
+      }
+
 
       console.log(`[assessSymptomSeverityFlow] Successfully generated structured output: ${JSON.stringify(result.output, null, 2)}`);
       return result.output;
