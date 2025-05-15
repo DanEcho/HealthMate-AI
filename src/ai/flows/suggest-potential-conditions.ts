@@ -1,3 +1,4 @@
+
 // This is an AI-powered function that takes a user's symptoms as input and returns a list of potential medical conditions.
 
 'use server';
@@ -13,9 +14,10 @@ export type SuggestPotentialConditionsInput = z.infer<typeof SuggestPotentialCon
 const SuggestedConditionSchema = z.object({
   condition: z.string().describe('The name of the potential medical condition.'),
   explanation: z.string().describe('A concise explanation of the condition and its relevance to the symptoms.'),
+  distinguishingSymptoms: z.array(z.string()).describe('Up to 3 key symptoms that help distinguish this condition, especially from other conditions that might present similarly based on the initial user input. Be concise.'),
 });
 
-const SuggestPotentialConditionsOutputSchema = z.array(SuggestedConditionSchema).describe('A list of potential medical conditions and their explanations.');
+const SuggestPotentialConditionsOutputSchema = z.array(SuggestedConditionSchema).describe('A list of potential medical conditions, their explanations, and distinguishing symptoms.');
 export type SuggestPotentialConditionsOutput = z.infer<typeof SuggestPotentialConditionsOutputSchema>;
 
 export async function suggestPotentialConditions(input: SuggestPotentialConditionsInput): Promise<SuggestPotentialConditionsOutput> {
@@ -28,8 +30,18 @@ const suggestPotentialConditionsPrompt = ai.definePrompt({
   output: {schema: SuggestPotentialConditionsOutputSchema},
   prompt: `You are a medical AI assistant. A user has described the following symptoms: {{{symptoms}}}.
 Based on these symptoms, suggest a list of potential medical conditions that could be related.
-For each condition, provide a concise explanation of the condition and its relevance to the symptoms.
-Return your response *only* as a JSON array of objects. Each object in the array must have a "condition" property (string) and an "explanation" property (string).
+For each condition, provide:
+1.  "condition": The name of the potential medical condition (string).
+2.  "explanation": A concise explanation of the condition and its relevance to the symptoms (string).
+3.  "distinguishingSymptoms": An array of up to 3 key symptoms (strings) that help distinguish this condition from others that might present similarly based on the initial user input. Be concise.
+
+Return your response *only* as a JSON array of objects. Each object in the array must adhere to this structure.
+Example of a single object:
+{
+  "condition": "Common Cold",
+  "explanation": "A viral infection of the upper respiratory tract, often causing runny nose, sore throat, and cough, which aligns with some of the reported symptoms.",
+  "distinguishingSymptoms": ["Runny or stuffy nose", "Mild body aches", "Sneezing"]
+}
 Prioritize conditions that are most likely to be related to the symptoms. Limit your response to the top 3 most relevant potential conditions.
 Ensure your entire output strictly adheres to this JSON array format and the specified object structure.
 `,
@@ -85,9 +97,13 @@ const suggestPotentialConditionsFlow = ai.defineFlow(
         throw new Error('AI failed to suggest potential conditions. The model response was empty or did not conform to the expected output structure.');
       }
       
-      // Zod parsing ensures this is an array of the correct type.
-      // No need to check !Array.isArray(result.output) as Zod handles it.
-      // An empty array is a valid output for this flow.
+      // Validate that distinguishingSymptoms is an array, even if empty.
+      for (const condition of result.output) {
+        if (!Array.isArray(condition.distinguishingSymptoms)) {
+          console.warn(`[suggestPotentialConditionsFlow] Condition "${condition.condition}" missing 'distinguishingSymptoms' array, setting to empty. Output was: ${JSON.stringify(condition, null, 2)}`);
+          condition.distinguishingSymptoms = [];
+        }
+      }
 
       console.log(`[suggestPotentialConditionsFlow] Successfully generated structured output: ${JSON.stringify(result.output, null, 2)}`);
       return result.output;
@@ -98,3 +114,4 @@ const suggestPotentialConditionsFlow = ai.defineFlow(
     }
   }
 );
+

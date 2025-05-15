@@ -1,7 +1,8 @@
+
 import type { SuggestPotentialConditionsOutput } from '@/ai/flows/suggest-potential-conditions';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, Lightbulb } from 'lucide-react';
 
 interface PotentialConditionsDisplayProps {
   conditions: SuggestPotentialConditionsOutput;
@@ -39,8 +40,21 @@ export function PotentialConditionsDisplay({ conditions }: PotentialConditionsDi
               <AccordionTrigger className="text-lg font-medium hover:text-primary">
                 {item.condition}
               </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground leading-relaxed">
-                {item.explanation}
+              <AccordionContent className="text-muted-foreground leading-relaxed space-y-3">
+                <p>{item.explanation}</p>
+                {item.distinguishingSymptoms && item.distinguishingSymptoms.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-1 mb-1">
+                      <Lightbulb className="h-4 w-4 text-accent" />
+                      Key Distinguishing Symptoms:
+                    </h4>
+                    <ul className="list-disc list-inside text-sm text-muted-foreground space-y-0.5 pl-2">
+                      {item.distinguishingSymptoms.map((symptom, i) => (
+                        <li key={i}>{symptom}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </AccordionContent>
             </AccordionItem>
           ))}
@@ -49,3 +63,4 @@ export function PotentialConditionsDisplay({ conditions }: PotentialConditionsDi
     </Card>
   );
 }
+
