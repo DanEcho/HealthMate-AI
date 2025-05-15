@@ -1,38 +1,39 @@
 
 'use client';
 
-// No local useState for showDoctors needed here anymore
 import { Button } from '@/components/ui/button';
 import { DynamicMapComponent, type MapMarker } from '@/components/common/MapComponent';
 import type { UserLocation } from '@/lib/geolocation';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { MapPin, InfoIcon, ListTree, MessageSquareQuote } from 'lucide-react';
+import { MapPin, InfoIcon, ListTree, MessageSquareQuote, RefreshCw } from 'lucide-react';
 import type { SuggestDoctorSpecialtyOutput } from '@/ai/flows/suggest-doctor-specialty';
 import { DoctorCard } from './DoctorCard';
 
 interface DoctorMapSectionProps {
   userLocation: UserLocation | null;
-  onLocateDoctors: () => void; // This will be called when the button is clicked
+  onLocateDoctors: () => void;
+  onRefreshLocation: () => Promise<void>; // New prop for refreshing location
   isLocatingDoctors: boolean;
+  isRefreshingLocation: boolean; // New prop for refresh loading state
   symptoms?: string; 
   isDefaultLocationUsed: boolean;
   aiSuggestedSpecialty?: SuggestDoctorSpecialtyOutput;
-  isVisible: boolean; // New prop to control visibility from parent
+  isVisible: boolean;
 }
 
 export function DoctorMapSection({
   userLocation,
   onLocateDoctors,
+  onRefreshLocation,
   isLocatingDoctors,
+  isRefreshingLocation,
   symptoms,
   isDefaultLocationUsed,
   aiSuggestedSpecialty,
-  isVisible, // Use this prop
+  isVisible,
 }: DoctorMapSectionProps) {
-  // const [showDoctors, setShowDoctors] = useState(false); // Removed local state
 
-  // Enhanced Mock Doctors Data
   const MOCK_DOCTORS: MapMarker[] = userLocation ? [
     { 
       id: 'doc1', 
@@ -91,22 +92,24 @@ export function DoctorMapSection({
     }
   ] : [];
 
-  // handleShowDoctorsClick is now just onLocateDoctors from props
-  // const handleShowDoctorsClick = () => {
-  //   onLocateDoctors(); 
-  //   // setShowDoctors(true); // Parent (AppLayoutClient) will manage visibility
-  // };
-
   const AIsuggestedSpecialtyCleaned = aiSuggestedSpecialty?.suggestedSpecialty?.toLowerCase().trim();
 
   return (
     <Card className="mt-6 shadow-lg">
       <CardHeader>
-         <div className="flex items-center gap-3">
-          <ListTree className="h-6 w-6 text-accent" />
-          <CardTitle className="text-2xl font-semibold">Find Nearby Medical Professionals</CardTitle>
+         <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+                <ListTree className="h-6 w-6 text-accent" />
+                <CardTitle className="text-2xl font-semibold">Find Nearby Medical Professionals</CardTitle>
+            </div>
+            {isVisible && userLocation && (
+                 <Button onClick={onRefreshLocation} disabled={isRefreshingLocation || isLocatingDoctors} variant="outline" size="sm">
+                    {isRefreshingLocation ? <LoadingSpinner size={16} className="mr-2" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    {isRefreshingLocation ? 'Refreshing...' : 'Refresh Location'}
+                </Button>
+            )}
         </div>
-        {isDefaultLocationUsed && isVisible && ( // Show warning if map is visible and location is default
+        {isDefaultLocationUsed && isVisible && (
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground bg-secondary p-3 rounded-md">
             <InfoIcon className="h-5 w-5 text-primary" />
             <span>Showing professionals for a default location in Melbourne as your precise location could not be determined.</span>
@@ -114,7 +117,7 @@ export function DoctorMapSection({
         )}
       </CardHeader>
       <CardContent className="space-y-6">
-        {!isVisible && ( // Use isVisible prop here
+        {!isVisible && (
           <div className="text-center">
             <p className="mb-4 text-muted-foreground">
               See a map and list of medical professionals near you.
@@ -126,9 +129,9 @@ export function DoctorMapSection({
           </div>
         )}
         
-        {isVisible && ( // Use isVisible prop here
+        {isVisible && (
           <>
-            {isLocatingDoctors && !userLocation && <div className="text-center py-4"><LoadingSpinner size={32} /><p className="text-muted-foreground mt-2">Locating...</p></div>}
+            {(isLocatingDoctors && !userLocation && !isRefreshingLocation) && <div className="text-center py-4"><LoadingSpinner size={32} /><p className="text-muted-foreground mt-2">Locating...</p></div>}
 
             {userLocation && (
               <>
@@ -169,9 +172,9 @@ export function DoctorMapSection({
               </>
             )}
 
-            {!isLocatingDoctors && !userLocation && !isDefaultLocationUsed && ( 
+            {(!isLocatingDoctors && !isRefreshingLocation) && !userLocation && !isDefaultLocationUsed && ( 
               <p className="text-destructive mt-4 text-center">
-                Could not determine your location. Please enable location services and try again.
+                Could not determine your location. Please enable location services and try again, or use the refresh button if available.
               </p>
             )}
           </>
@@ -180,3 +183,4 @@ export function DoctorMapSection({
     </Card>
   );
 }
+
