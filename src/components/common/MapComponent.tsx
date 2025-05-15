@@ -37,7 +37,6 @@ export function DynamicMapComponent(props: MapComponentProps) {
   // Keying LoadedMap (ActualLeafletMap) by center and zoom.
   // This ensures that if these fundamental props change, React unmounts the old
   // map component instance and mounts a new one, which gets a fresh MapContainer.
-  // This can help avoid "Map container is already initialized" if updates to an
-  // existing instance are problematic or if cleanup of the old instance is incomplete.
+  // This is the standard way to avoid "Map container is already initialized".
   return <LoadedMap {...props} key={`${props.center.lat}-${props.center.lng}-${props.zoom || DEFAULT_ZOOM}`} />;
 }

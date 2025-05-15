@@ -28,8 +28,6 @@ export interface MapComponentProps {
 const DEFAULT_ZOOM = 13;
 
 // Configure Leaflet's default icon paths
-// This ensures that if a Marker is rendered without a custom icon, Leaflet can find the default images.
-// These files (marker-icon.png, marker-icon-2x.png, marker-shadow.png) should be in your /public/leaflet/ directory.
 if (typeof window !== 'undefined') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (L.Icon.Default && L.Icon.Default.prototype && (L.Icon.Default.prototype as any)._getIconUrl) {
@@ -37,9 +35,9 @@ if (typeof window !== 'undefined') {
         delete (L.Icon.Default.prototype as any)._getIconUrl;
     }
     L.Icon.Default.mergeOptions({
-        iconRetinaUrl: '/leaflet/marker-icon-2x.png', // Adjusted path
-        iconUrl: '/leaflet/marker-icon.png',         // Adjusted path
-        shadowUrl: '/leaflet/marker-shadow.png',     // Adjusted path
+        iconRetinaUrl: '/leaflet/marker-icon-2x.png',
+        iconUrl: '/leaflet/marker-icon.png',
+        shadowUrl: '/leaflet/marker-shadow.png',
     });
 }
 
@@ -92,13 +90,9 @@ function createLeafletIcon(type: MapMarker['type']): LeafletIconType | null {
 }
 
 // Helper component to update map view when props change (center, zoom)
-// This is particularly useful if the MapContainer instance is stable (not re-keyed).
-// If MapContainer's parent is keyed (as in the current DynamicMapComponent strategy),
-// this MapUpdater will run on a new map instance each time the key changes.
 function MapUpdater({ center, zoom }: { center: UserLocation; zoom: number }) {
   const map = useMap();
   useEffect(() => {
-    // 'center' is guaranteed by ActualLeafletMap's check
     map.setView([center.lat, center.lng], zoom);
   }, [center, zoom, map]);
   return null;
@@ -123,15 +117,16 @@ export function ActualLeafletMap({
   // The outer div provides styling and dimensions for the map.
   // MapContainer itself should not be keyed here if its parent component (ActualLeafletMap,
   // when used as LoadedMap in DynamicMapComponent) is already being keyed.
-  // Keying the parent ensures this whole component (including MapContainer) is new on key change.
+  // Keying the parent (LoadedMap via DynamicMapComponent) ensures this whole component 
+  // (including MapContainer) is new on key change.
   return (
     <div
       className={cn("h-96 w-full rounded-lg overflow-hidden shadow-md border", className)}
       style={style}
     >
       <MapContainer
-        // No explicit key here. If DynamicMapComponent keys LoadedMap (this component),
-        // this MapContainer will be part of a new component instance upon key change.
+        // No explicit key here; relying on parent component's (LoadedMap/ActualLeafletMap) key
+        // to force re-mount when center/zoom props change fundamentally.
         center={[center.lat, center.lng]}
         zoom={zoom}
         scrollWheelZoom={true}
@@ -153,8 +148,6 @@ export function ActualLeafletMap({
             </Marker>
           );
         })}
-        {/* MapUpdater handles changes if the MapContainer instance were to persist. 
-            With parent keying, it runs on each new map instance. */}
         <MapUpdater center={center} zoom={zoom} />
       </MapContainer>
     </div>
