@@ -45,16 +45,8 @@ HealthMate AI was created for the Google APAC Solution Challenge 2025
 
 ## Getting Started
 
-To run the application locally:
-
-1.  Clone the repository.
-2.  Install dependencies: `npm install` (or `yarn install`)
-3.  Set up your AI provider API key (e.g., for Google's Gemini) in a `.env` file:
-    ```
-    NEXT_PUBLIC_GOOGLE_AI_API_KEY=YOUR_AI_API_KEY_HERE
-    ```
-4.  Run the development server: `npm run dev` (or `yarn dev`)
-5.  Open [http://localhost:9002](http://localhost:9002) (or your configured port) in your browser.
+To access the preview of the preview, use this link:
+https://6000-firebase-studio-1747075442827.cluster-xpmcxs2fjnhg6xvn446ubtgpio.cloudworkstations.dev/
 
 ## Important Notes
 
